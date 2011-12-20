@@ -1,16 +1,11 @@
-#OUwie Master Controller
+#OUwie likelihood calculator
 
 #written by Jeremy M. Beaulieu
 
-#Fits the Ornstein-Uhlenbeck model of continuous characters evolving under discrete selective 
-#regimes. The input is a tree of class "phylo" that has the regimes as internal node labels 
-#and a trait file. The trait file must be in the following order: Species names, Regime, and 
-#continuous trait. Different models can be specified -- Brownian motion (BM), multiple rate BM (BMS)
-#global OU (OU1), multiple regime OU (OUM), multiple sigmas (OUMV), multiple alphas (OUMA), 
-#and the multiple alphas and sigmas (OUMVA). 
+#Allows the user to calculate the likelihood given a specified set of parameter values. 
 
-OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"), root.station=TRUE, ip=1, plot.resid=TRUE, clade=NULL, eigenvect=FALSE){
-
+OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"),root.station=TRUE, alpha=NULL, sigma.sq=NULL, theta=NULL, clade=NULL){
+	
 	#Makes sure the data is in the same order as the tip labels
 	data<-data.frame(data[,2], data[,3], row.names=data[,1])
 	data<-data[phy$tip.label,]
@@ -18,7 +13,6 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 	#Values to be used throughout
 	n=max(phy$edge[,1])
 	ntips=length(phy$tip.label)
-	
 	#Will label the clade of interest
 	if(is.null(clade)){
 		phy=phy
@@ -39,7 +33,7 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 	tip.states<-factor(data[,1])
 	data[,1]<-as.numeric(tip.states)
 	k<-length(levels(int.states))
-	ip=ip
+	
 	#A boolean for whether the root theta should be estimated -- default is that it should be.
 	root.station=root.station
 	
@@ -97,69 +91,77 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 	
 	#Matches the model with the appropriate parameter matrix structure
 	if (is.character(model)) {
-		index.mat<-matrix(0,2,k)
+		Rate.mat <- matrix(1, 2, k)
 		
 		if (model == "BM1"){
 			np=1
 			index<-matrix(TRUE,2,k)
-			index.mat[1,1:k]<-np+1
-			index.mat[2,1:k]<-1
+			Rate.mat[1,1:k]<-0.0000000001
+			Rate.mat[2,1:k]<-sigma.sq
 			bool=TRUE
 		}
 		if (model == "BMS"){
 			np=k
 			index<-matrix(TRUE,2,k)
-			index.mat[1,1:k]<-np+1
-			index.mat[2,1:k]<-1:np
+			Rate.mat[1,1:k]<-0.0000000001
+			Rate.mat[2,1:k]<-sigma.sq
 			bool=FALSE
 		}
 		if (model == "OU1"){
 			np=2
 			index<-matrix(TRUE,2,k)
-			index.mat[1,1:k]<-1
-			index.mat[2,1:k]<-2
+			Rate.mat[1,1:k]<-alpha
+			Rate.mat[2,1:k]<-sigma.sq
 			bool=root.station
 		}
 		if (model == "OUM"){
 			np=2
 			index<-matrix(TRUE,2,k)
-			index.mat[1,1:k]<-1
-			index.mat[2,1:k]<-2
+			Rate.mat[1,1:k]<-alpha
+			Rate.mat[2,1:k]<-sigma.sq
 			bool=root.station
 		}
 		if (model == "OUMV") {
 			np=k+1
 			index<-matrix(TRUE,2,k)
-			index.mat[1,1:k]<-1
-			index.mat[2,1:k]<-2:(k+1)
+			Rate.mat[1,1:k]<-alpha
+			Rate.mat[2,1:k]<-sigma.sq
 			bool=root.station
 		}
 		if (model == "OUMA") {
 			np=k+1
 			index<-matrix(TRUE,2,k)
-			index.mat[1,1:k]<-1:k
-			index.mat[2,1:k]<-k+1
+			Rate.mat[1,1:k]<-alpha
+			Rate.mat[2,1:k]<-sigma.sq
 			bool=root.station
 		}
 		if (model == "OUMVA") {
 			np=k*2
 			index<-matrix(TRUE,2,k)
-			index.mat[index]<-1:(k*2)
+			Rate.mat[1,1:k]<-alpha
+			Rate.mat[2,1:k]<-sigma.sq
 			bool=root.station
 		}
 	}
 	obj<-NULL
-	Rate.mat <- matrix(1, 2, k)
+	
 	#Likelihood function for estimating model parameters
-	dev<-function(p){
-		
-		Rate.mat[] <- c(p, 0.0000000001)[index.mat]
+	dev<-function(){
 		
 		N<-length(x[,1])
 		V<-varcov.ou(phy, edges, Rate.mat, root.state=root.state)
 		W<-weight.mat(phy, edges, Rate.mat, root.state=root.state, assume.station=bool)
 		
-		theta<-pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)%*%t(W)%*%pseudoinverse(V)%*%x
+		if(is.null(theta)){
+			theta<-pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)%*%t(W)%*%pseudoinverse(V)%*%x
+			se<-sqrt(diag(pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)))
+		}
+		else{
+			theta=theta
+			se=rep(NA,length(theta))
+		}
+
+		theta.est<-cbind(theta,se)
 		
 		DET<-determinant(V, logarithm=TRUE)
 		
@@ -167,87 +169,56 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 		q<-t(res)%*%solve(V,res)
 		logl <- -.5*(N*log(2*pi)+as.numeric(DET$modulus)+q[1,1])
 		
-		return(-logl)
+		list(-logl,theta.est)
 	}
 	#Informs the user that the optimization routine has started and starting value is being used (default=1)
-	cat("Begin subplex optimization routine -- Starting value:",ip, "\n")
+	cat("Calculating likelihood using fixed parameter values:",c(alpha,sigma.sq,theta), "\n")
 	
-	lower = rep(0.0000000001, np)
-	upper = rep(20, np)
+	loglik <- dev()
+	obj$loglik<- -loglik[[1]]
 	
-	opts <- list("algorithm"="NLOPT_LN_SBPLX", "maxeval"="1000000", "ftol_rel"=.Machine$double.eps^0.5, "xtol_rel"=.Machine$double.eps^0.5)
-	out = nloptr(x0=rep(ip, length.out = np), eval_f=dev, lb=lower, ub=upper, opts=opts)
-	
-	obj$loglik <- -out$objective
-	
-	#Takes estimated parameters from dev and calculates theta for each regime
-	dev.theta<-function(p){
-		
-		Rate.mat[] <- c(p, 0.0000000001)[index.mat]
-		
-		N<-length(x[,1])
-		V<-varcov.ou(phy, edges, Rate.mat, root.state=root.state)
-		W<-weight.mat(phy, edges, Rate.mat, root.state=root.state, assume.station=bool)
-		
-		theta<-pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)%*%t(W)%*%pseudoinverse(V)%*%x
-		
-		#Standard error of theta -- uses pseudoinverse to overcome singularity issues
-		se<-sqrt(diag(pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)))
-		
-		#If plot.resid=TRUE, then the residuals are plotted with each regime designated -- colors start at 1 and go to n, where n is the total number of regimes
-		if(plot.resid==TRUE){
-			res<-W%*%theta-x
-			plot(1:length(res), res, col=data[,1], pch=19, cex=.5, xlab="Taxon ID", ylab="Residuals")
-			abline(h=0, lty=2)
-		}
-		#Joins the vector of thetas with the vector of standard errors into a 2 column matrix for easy extraction at the summary stage
-		theta.est<-cbind(theta,se)
-		#Returns final GLS solution
-		theta.est
-	}
-	
-	#Informs the user that the summarization has begun, output model-dependent and dependent on whether the root theta is to be estimated
-	cat("Finished. Summarizing results.", "\n")	
 	if (is.character(model)) {
 		if (model == "BM1"){
 			obj$AIC <- -2*obj$loglik+2*(np+1)
-			obj$AICc <- -2*obj$loglik+(2*(np+1)*(ntips/(ntips-(np+1)-1)))
-			obj$Param.est <- matrix(out$solution[index.mat], dim(index.mat))
+			obj$AICc <- -2*obj$loglik+(2*(np+k)*(ntips/(ntips-(np+k)-1)))
+			obj$Param.est <- Rate.mat
+			obj$Param.est[1,1:k] <- NA
 			rownames(obj$Param.est)<-c("alpha","sigma.sq")
 			colnames(obj$Param.est) <- levels(int.states)
-			theta <- dev.theta(out$solution)
+			theta <- loglik[[2]]
 			obj$ahat <- matrix(theta[1,], 1,2)
 			colnames(obj$ahat) <- c("Estimate", "SE")
 		}
 		if (model == "BMS"){
 			obj$AIC <- -2*obj$loglik+2*(np+1)
-			obj$AICc <- -2*obj$loglik+(2*(np+1)*(ntips/(ntips-(np+1)-1)))
-			obj$Param.est <- matrix(out$solution[index.mat], dim(index.mat))
+			obj$AICc <- -2*obj$loglik+(2*(np+k)*(ntips/(ntips-(np+k)-1)))
+			obj$Param.est <- Rate.mat
+			obj$Param.est[1,1:k] <- NA
 			rownames(obj$Param.est)<-c("alpha","sigma.sq")
 			colnames(obj$Param.est) <- levels(int.states)
-			theta <- dev.theta(out$solution)
+			theta <- loglik[[2]]
 			obj$ahat <- matrix(theta[1,], 1,2)
 			colnames(obj$ahat) <- c("Estimate", "SE")
 		}
 		if (root.station == TRUE){
 			if (model == "OU1"){
 				obj$AIC <- -2*obj$loglik+2*(np+1)
-				obj$AICc <- -2*obj$loglik+(2*(np+1)*(ntips/(ntips-(np+1)-1)))
-				obj$Param.est<- matrix(out$solution[index.mat], dim(index.mat))
+				obj$AICc <- -2*obj$loglik+(2*(np+k)*(ntips/(ntips-(np+k)-1)))
+				obj$Param.est<- Rate.mat
 				rownames(obj$Param.est)<-c("alpha","sigma.sq")
 				colnames(obj$Param.est)<-levels(int.states)
-				theta <- dev.theta(out$solution)
+				theta <- loglik[[2]]
 				obj$theta <- matrix(theta[1,], 1,2)
 				colnames(obj$theta) <- c("Estimate", "SE")			}
 		}
 		if (root.station == FALSE){
 			if (model == "OU1"){
-				obj$AIC <- -2*obj$loglik+2*(np+2)
-				obj$AICc <- -2*obj$loglik+(2*(np+2)*(ntips/(ntips-(np+2)-1)))
-				obj$Param.est<- matrix(out$solution[index.mat], dim(index.mat))
+				obj$AIC <- -2*obj$loglik+2*(np+1)
+				obj$AICc <- -2*obj$loglik+(2*(np+k)*(ntips/(ntips-(np+k)-1)))
+				obj$Param.est<- Rate.mat
 				rownames(obj$Param.est)<-c("alpha","sigma.sq")
 				colnames(obj$Param.est)<-levels(int.states)
-				theta<-dev.theta(out$solution)
+				theta <- loglik[[2]]
 				obj$theta<-theta[1:2,1:2]
 				rownames(obj$theta)<-c("Root", "Primary")
 				colnames(obj$theta)<-c("Estimate", "SE")
@@ -255,12 +226,12 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 		}
 		if (root.station == FALSE){
 			if (model == "OUM"| model == "OUMV"| model == "OUMA" | model == "OUMVA"){ 
-				obj$AIC <- -2*obj$loglik+2*(np+k+1)
-				obj$AICc <- -2*obj$loglik+(2*(np+k+1)*(ntips/(ntips-(np+k+1)-1)))
-				obj$Param.est<- matrix(out$solution[index.mat], dim(index.mat))
+				obj$AIC <- -2*obj$loglik+2*(np+k)
+				obj$AICc <- -2*obj$loglik+(2*(np+k)*(ntips/(ntips-(np+k)-1)))
+				obj$Param.est <- Rate.mat
 				rownames(obj$Param.est)<-c("alpha","sigma.sq")
 				colnames(obj$Param.est)<-levels(int.states)
-				obj$theta<-dev.theta(out$solution)
+				obj$theta<-loglik[[2]]
 				rownames(obj$theta)<-c("Root",levels(int.states))
 				colnames(obj$theta)<-c("Estimate", "SE")
 			}
@@ -269,42 +240,15 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 			if (model == "OUM"| model == "OUMV"| model == "OUMA" | model == "OUMVA"){ 
 				obj$AIC <- -2*obj$loglik+2*(np+k)
 				obj$AICc <- -2*obj$loglik+(2*(np+k)*(ntips/(ntips-(np+k)-1)))
-				obj$Param.est<- matrix(out$solution[index.mat], dim(index.mat))
+				obj$Param.est<- Rate.mat
 				rownames(obj$Param.est)<-c("alpha","sigma.sq")
 				colnames(obj$Param.est)<-levels(int.states)				
-				obj$theta<-dev.theta(out$solution)
+				obj$theta<-loglik[[2]]
 				rownames(obj$theta)<-c(levels(int.states))
 				colnames(obj$theta)<-c("Estimate", "SE")
 			}
 		}
 	}
-	
-	#Informs the user that model diagnostics are going to be carried out -- in the future, should it be an option to turn off?
-	cat("Finished. Performing diagnostic tests.", "\n")
-	#Calculates the Hessian for use in calculating standard errors and whether the maximum likelihood solution was found
-	obj$Iterations<-out$iterations
-	h <- hessian(x=out$solution, func=dev)
-	#Using the corpcor package here to overcome possible NAs with calculating the SE
-	obj$Param.SE<-matrix(sqrt(diag(pseudoinverse(h)))[index.mat], dim(index.mat))
-	rownames(obj$Param.SE)<-c("alpha","sigma.sq")
-	colnames(obj$Param.SE)<-levels(int.states)
-	#Eigendecomposition of the Hessian to assess reliability of likelihood estimates
-	hess.eig<-eigen(h,symmetric=TRUE)
-	#If eigenvect is TRUE then the eigenvector and index matrix will appear in the list of objects 
-	obj$eigval<-signif(hess.eig$values,2)
-	if(any(obj$eigval<0) || eigenvect){
-		obj$eigvect<-round(hess.eig$vectors, 2)
-		obj$index.matrix <- index.mat
-		rownames(obj$index.matrix)<-c("alpha","sigma.sq")
-		colnames(obj$index.matrix)<-levels(int.states)
-		#If any eigenvalue is less than 0 then the solution is not the maximum likelihood solution
-    if (any(obj$eigval<0)) {
-		  obj$Diagnostic<-'The objective function may be at a saddle point -- check eigenvectors or try a simpler model'
-    }
-    else{obj$Diagnostic<-'Arrived at a reliable solution'}
-
-	}
-	else{obj$Diagnostic<-'Arrived at a reliable solution'}
 	
 	obj
 }

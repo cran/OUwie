@@ -37,7 +37,7 @@ OUwie.sim <- function(phy, data, alpha, sigma.sq, theta0, theta){
 	##Begins the construction of the edges matrix -- similar to the ouch format##
 	#Makes a vector of absolute times in proportion of the total length of the tree
 	branch.lengths=rep(0,(n-1))
-	branch.lengths[(ntips+1):(n-1)]=branching.times(phy)[-1]/max(branching.times(phy)[-1])
+	branch.lengths[(ntips+1):(n-1)]=branching.times(phy)[-1]/max(branching.times(phy))
 	
 	#Obtain root state and internal node labels
 	root.state<-phy$node.label[1]
@@ -105,20 +105,19 @@ OUwie.sim <- function(phy, data, alpha, sigma.sq, theta0, theta){
 		}
 		oldregime=newregime
 	}
-	
+
 	x<-round(x,8)
-	Tr.values<-cbind(phy$tip.label, data[,1], x[TIPS,])
-	Tr.values<-as.data.frame(Tr.values)
-	colnames(Tr.values)<-c("Genus_species","Reg","X")
-	write.table(Tr.values, file="sim.data", quote=FALSE, row.names=FALSE, sep="\t")
-	Tr.values<-read.delim("sim.data")
 	
-	#Cannot seem to get the dataset to work unless I output to directory, re-upload it, then delete it. Weird. X is read in as a character
-	string1<-"rm"
-	string2<- paste(string1, "sim.data", sep=" ")
-	system(string2)
+	sim.dat<-matrix(,ntips,3)
+	sim.dat<-data.frame(sim.dat)
 	
-	Tr.values
+	sim.dat[,1]<-phy$tip.label
+	sim.dat[,2]<-data[,1]
+	sim.dat[,3]<-x[TIPS]
+	
+
+	colnames(sim.dat)<-c("Genus_species","Reg","X")
+	sim.dat
 	
 }
 
