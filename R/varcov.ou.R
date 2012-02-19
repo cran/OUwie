@@ -2,11 +2,16 @@
 
 #written by Jeremy M. Beaulieu
 
-varcov.ou<-function(phy, edges, Rate.mat, root.state){
+varcov.ou<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE){
 	
 	n=max(phy$edge[,1])
 	ntips=length(phy$tip.label)
-	k=max(as.numeric(phy$node.label))
+	if(simmap.tree==TRUE){
+		k=length(colnames(phy$mapped.edge))
+	}
+	if(simmap.tree==FALSE){
+		k=max(as.numeric(phy$node.label))
+	}
 	edges[,4]<-1-edges[,4]
 	oldregime=root.state
 	oldtime=0
@@ -17,45 +22,83 @@ varcov.ou<-function(phy, edges, Rate.mat, root.state){
 	n.cov1=matrix(rep(0,n*n), n, n)
 	n.cov2=matrix(rep(0,n*n), n, n)
 	nodecode=matrix(c(ntips+1,0,root.state),1,3)
-
-	for(i in 1:length(edges[,1])){
-		anc = edges[i,2]
-		desc = edges[i,3]
-		newregime=which(edges[i,5:(k+4)]==1)
-		current=edges[i,4]
+	if(simmap.tree==TRUE){
 		
-		if(anc%in%nodecode[,1]){
-			start=which(nodecode[,1]==anc)
-			oldtime=nodecode[start,2]
-			oldregime=nodecode[start,3]
-		}
-		else{
-			newrow=c(anc,newtime,oldregime)
-			nodecode=rbind(nodecode,newrow)
-			oldtime=newtime
-		}
-		if(oldregime==newregime){
-			newtime=current
-			nodevar1[i]=alpha[oldregime]*(newtime-oldtime)
-			nodevar2[i]=sigma[oldregime]*((exp(2*alpha[oldregime]*newtime)-exp(2*alpha[oldregime]*oldtime))/(2*alpha[oldregime]))
-		}
-		else{
-			newtime=current-((current-oldtime)/2)
-			epoch1a=alpha[oldregime]*(newtime-oldtime)
-			epoch1b=sigma[oldregime]*((exp(2*alpha[oldregime]*newtime)-exp(2*alpha[oldregime]*oldtime))/(2*alpha[oldregime]))
-			oldtime=newtime
-			newtime=current
-			epoch2a=alpha[newregime]*(newtime-oldtime)
-			epoch2b=sigma[newregime]*((exp(2*alpha[newregime]*newtime)-exp(2*alpha[newregime]*oldtime))/(2*alpha[newregime]))
-			nodevar1[i]<-epoch1a+epoch2a
-			nodevar2[i]<-epoch1b+epoch2b
-		}
-		oldregime=newregime
-		n.cov1[edges[i,2],edges[i,3]]=nodevar1[i]
-		n.cov2[edges[i,2],edges[i,3]]=nodevar2[i]
+		regimeindex<-colnames(phy$mapped.edge)
 		
+		for(i in 1:length(edges[,1])){
+			
+			anc = edges[i, 2]
+			desc = edges[i, 3]
+			
+			currentmap<-phy$maps[[i]]
+			current=edges[i,4]
+			
+			if(anc%in%nodecode[,1]){
+				start=which(nodecode[,1]==anc)
+				oldtime=nodecode[start,2]
+				oldregime=nodecode[start,3]
+			}
+			else{
+				newrow=c(anc,newtime,oldregime)
+				nodecode=rbind(nodecode,newrow)
+				oldtime=newtime
+			}
+			for (regimeindex in 1:length(currentmap)){
+				regimeduration<-currentmap[regimeindex]
+				newtime<-oldtime+regimeduration
+				regimenumber<-which(colnames(phy$mapped.edge)==names(currentmap)[regimeindex])
+				nodevar1[i]=nodevar1[i]+alpha[regimenumber]*(newtime-oldtime)
+				nodevar2[i]=nodevar2[i]+sigma[regimenumber]*((exp(2*alpha[regimenumber]*newtime)-exp(2*alpha[regimenumber]*oldtime))/(2*alpha[regimenumber]))
+				
+				oldtime<-newtime
+				newregime<-regimenumber
+			}
+			oldregime=newregime
+			n.cov1[edges[i,2],edges[i,3]]=nodevar1[i]
+			n.cov2[edges[i,2],edges[i,3]]=nodevar2[i]
+		}
 	}
-
+	if(simmap.tree==FALSE){
+		
+		for(i in 1:length(edges[,1])){
+			anc = edges[i,2]
+			desc = edges[i,3]
+			newregime=which(edges[i,5:(k+4)]==1)
+			current=edges[i,4]
+			
+			if(anc%in%nodecode[,1]){
+				start=which(nodecode[,1]==anc)
+				oldtime=nodecode[start,2]
+				oldregime=nodecode[start,3]
+			}
+			else{
+				newrow=c(anc,newtime,oldregime)
+				nodecode=rbind(nodecode,newrow)
+				oldtime=newtime
+			}
+			if(oldregime==newregime){
+				newtime=current
+				nodevar1[i]=alpha[oldregime]*(newtime-oldtime)
+				nodevar2[i]=sigma[oldregime]*((exp(2*alpha[oldregime]*newtime)-exp(2*alpha[oldregime]*oldtime))/(2*alpha[oldregime]))
+			}
+			else{
+				newtime=current-((current-oldtime)/2)
+				epoch1a=alpha[oldregime]*(newtime-oldtime)
+				epoch1b=sigma[oldregime]*((exp(2*alpha[oldregime]*newtime)-exp(2*alpha[oldregime]*oldtime))/(2*alpha[oldregime]))
+				oldtime=newtime
+				newtime=current
+				epoch2a=alpha[newregime]*(newtime-oldtime)
+				epoch2b=sigma[newregime]*((exp(2*alpha[newregime]*newtime)-exp(2*alpha[newregime]*oldtime))/(2*alpha[newregime]))
+				nodevar1[i]<-epoch1a+epoch2a
+				nodevar2[i]<-epoch1b+epoch2b
+			}
+			oldregime=newregime
+			n.cov1[edges[i,2],edges[i,3]]=nodevar1[i]
+			n.cov2[edges[i,2],edges[i,3]]=nodevar2[i]
+			
+		}
+	}	
 	#Remove nodecode matrix from memory
 	rm(nodecode)
 	vcv1<-mat.gen(n.cov1,phy)
@@ -88,14 +131,14 @@ mat.gen<-function(mat,phy){
 		nn<-Ancestors(phy,i)
 		S[nn,i]<-1
 	}
-
+	
 	#Convert to a sparse matrix
 	S<-as.matrix.csr(S)
 	
 	#Create a matrix of sums for each node
 	temp<-mat%*%S+mat
 	n.covsums=apply(as.matrix(temp), 2, sum)
-
+	
 	rm(temp)
 	rm(mat)
 	#Generates a matrix that lists the descendants for each ancestral node
@@ -126,62 +169,4 @@ mat.gen<-function(mat,phy){
 	new.mat
 	
 }
-
-#Utility function for obtaining mrcas for each species pair
-Ancestors<-function (x, node, type = c("all", "parent")) 
-{
-    parents <- x$edge[, 1]
-    child <- x$edge[, 2]
-    pvector <- numeric(max(x$edge)) # parents
-    pvector[child] <- parents    
-    type <- match.arg(type)
-    if (type == "parent") 
-	return(pvector[node])
-    res <- numeric(0)
-    repeat {
-        anc <- pvector[node]
-        if (anc == 0) break
-        res <- c(res, anc)
-        node <- anc
-    }
-    res
-}
-
-allChildren = function(x){
-	parent = x$edge[,1]
-	children = x$edge[,2]
-	res = vector("list", max(x$edge))
-	for(i in 1:length(parent)) res[[parent[i]]] = c(res[[parent[i]]], children[i])
-	res
-}
-
-
-Children = function(x, node){
-	if(length(node)==1) return(allChildren(x)[[node]])
-	allChildren(x)[node]
-}
-
-Descendants = function(x, node, type=c("tips","children","all")){
-    type <- match.arg(type)
-    if(type=="children") return(Children(x, node))
-    
-    desc = function(x, node, type){# ,isInternal=NULL, ch=NULL
-        isInternal = logical(max(x$edge))
-        isInternal[ unique(x$edge[,1]) ] =TRUE 
-		
-        if(!isInternal[node])return(node)
-        ch = allChildren(x)
-        res = NULL
-        while(length(node)>0){
-            tmp = unlist(ch[node])
-            res = c(res, tmp)
-            node = tmp[isInternal[tmp]]
-        }
-		if(type=="tips") return(res[!isInternal[res]])
-		res
-    }
-    if(length(node)>1) return(lapply(node, desc, x=x, type=type))
-    desc(x,node, type)
-}
-
 

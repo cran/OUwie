@@ -2,11 +2,16 @@
 
 #written by Jeremy M. Beaulieu
 
-weight.mat<-function(phy, edges, Rate.mat, root.state, assume.station=TRUE){
+weight.mat<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE, assume.station=TRUE){
 	
 	n=max(phy$edge[,1])
 	ntips=length(phy$tip.label)
-	k=max(as.numeric(phy$node.label))
+	if(simmap.tree==TRUE){
+		k=length(colnames(phy$mapped.edge))
+	}
+	if(simmap.tree==FALSE){
+		k=max(as.numeric(phy$node.label))
+	}
 	edges=edges
 	oldregime=root.state
 	oldtime=0
@@ -22,15 +27,20 @@ weight.mat<-function(phy, edges, Rate.mat, root.state, assume.station=TRUE){
 			
 			n.cov=matrix(0, n, n)
 			nodecode=matrix(c(ntips+1,0,root.state),1,3)
-			#Weight calculated for the root
-			#W[,1]<-exp(-alpha[1]*1)
+			
 			#Weights for each species per regime
 			for(i in 1:length(edges[,1])){
+				
 				anc = edges[i, 2]
 				desc = edges[i, 3]
-				newregime=which(edges[i,5:(k+4)]==1)
-				current=edges[i,4]
-				
+				if(simmap.tree==TRUE){
+					currentmap<-phy$maps[[i]]
+					current=edges[i,4]
+				}
+				if(simmap.tree==FALSE){
+					newregime=which(edges[i,5:(k+4)]==1)
+					current=edges[i,4]
+				}
 				if(anc%in%nodecode[,1]){
 					start=which(nodecode[,1]==anc)
 					oldtime=nodecode[start,2]
@@ -41,36 +51,48 @@ weight.mat<-function(phy, edges, Rate.mat, root.state, assume.station=TRUE){
 					nodecode=rbind(nodecode,newrow)
 					oldtime=newtime
 				}
-				
-				if(oldregime==newregime){
-					newtime=current
-					
-					if(newregime==j){
-						nodevar[i]=exp(-alpha[root.state])*(exp(alpha[oldregime]*newtime)-exp(alpha[oldregime]*oldtime))
+				if(simmap.tree==TRUE){
+					for (regimeindex in 1:length(currentmap)) {
+						regimeduration<-currentmap[regimeindex]
+						newtime<-oldtime+regimeduration
+						regimenumber<-which(colnames(phy$mapped.edge)==names(currentmap)[regimeindex])
+						if (regimenumber==j){
+							nodevar[i]<-exp(-alpha[root.state])*(exp(alpha[regimenumber]*newtime)-exp(alpha[regimenumber]*oldtime))
+						}
+						oldtime<-newtime
+						newregime<-regimenumber
+					}
+				}
+				if(simmap.tree==FALSE){
+					if(oldregime==newregime){
+						newtime=current
+						
+						if(newregime==j){
+							nodevar[i]=exp(-alpha[root.state])*(exp(alpha[oldregime]*newtime)-exp(alpha[oldregime]*oldtime))
+						}
+						else{
+							nodevar[i]=0
+						}
 					}
 					else{
-						nodevar[i]=0
+						newtime=current-((current-oldtime)/2)
+						epoch1=exp(-alpha[root.state])*(exp(alpha[oldregime]*newtime)-exp(alpha[oldregime]*oldtime))
+						oldtime=newtime
+						newtime=current
+						epoch2=exp(-alpha[root.state])*(exp(alpha[newregime]*newtime)-exp(alpha[newregime]*oldtime))
+						
+						if(oldregime==j){
+							nodevar[i]=epoch1
+						}
+						if(newregime==j){
+							nodevar[i]=epoch2
+						}
 					}
 				}
-				else{
-					newtime=current-((current-oldtime)/2)
-					epoch1=exp(-alpha[root.state])*(exp(alpha[oldregime]*newtime)-exp(alpha[oldregime]*oldtime))
-					oldtime=newtime
-					newtime=current
-					epoch2=exp(-alpha[root.state])*(exp(alpha[newregime]*newtime)-exp(alpha[newregime]*oldtime))
-					
-					if(oldregime==j){
-						nodevar[i]=epoch1
-					}
-					if(newregime==j){
-						nodevar[i]=epoch2
-					}
-				}
-				
 				oldregime=newregime
 				n.cov[edges[i,2],edges[i,3]]=nodevar[i]
 			}
-			
+	
 			#Generates the mystical S matrix
 			S<-matrix(0,n,n)
 			for(i in 1:n){
@@ -113,9 +135,14 @@ weight.mat<-function(phy, edges, Rate.mat, root.state, assume.station=TRUE){
 			for(i in 1:length(edges[,1])){
 				anc = edges[i, 2]
 				desc = edges[i, 3]
-				newregime=which(edges[i,5:(k+4)]==1)
-				current=edges[i,4]
-				
+				if(simmap.tree==TRUE){
+					currentmap<-phy$maps[[i]]
+					current=edges[i,4]
+				}
+				if(simmap.tree==FALSE){
+					newregime=which(edges[i,5:(k+4)]==1)
+					current=edges[i,4]
+				}
 				if(anc%in%nodecode[,1]){
 					start=which(nodecode[,1]==anc)
 					oldtime=nodecode[start,2]
@@ -126,32 +153,43 @@ weight.mat<-function(phy, edges, Rate.mat, root.state, assume.station=TRUE){
 					nodecode=rbind(nodecode,newrow)
 					oldtime=newtime
 				}
-				
-				if(oldregime==newregime){
-					newtime=current
-					
-					if(newregime==j){
-						nodevar[i]=exp(-alpha[root.state])*(exp(alpha[oldregime]*newtime)-exp(alpha[oldregime]*oldtime))
+				if(simmap.tree==TRUE){
+					for (regimeindex in 1:length(currentmap)){
+						regimeduration<-currentmap[regimeindex]
+						newtime<-oldtime+regimeduration
+						regimenumber<-which(colnames(phy$mapped.edge)==names(currentmap)[regimeindex])
+						if (regimenumber==j) {
+							nodevar[i]<-exp(-alpha[root.state])*(exp(alpha[regimenumber]*newtime)-exp(alpha[regimenumber]*oldtime))
+						}
+						oldtime<-newtime
+						newregime<-regimenumber
+					}	
+				}
+				if(simmap.tree==FALSE){
+					if(oldregime==newregime){
+						newtime=current
+						
+						if(newregime==j){
+							nodevar[i]=exp(-alpha[root.state])*(exp(alpha[oldregime]*newtime)-exp(alpha[oldregime]*oldtime))
+						}
+						else{
+							nodevar[i]=0
+						}
 					}
 					else{
-						nodevar[i]=0
+						newtime=current-((current-oldtime)/2)
+						epoch1=exp(-alpha[root.state])*(exp(alpha[oldregime]*newtime)-exp(alpha[oldregime]*oldtime))
+						oldtime=newtime
+						newtime=current
+						epoch2=exp(-alpha[root.state])*(exp(alpha[newregime]*newtime)-exp(alpha[newregime]*oldtime))
+						if(oldregime==j){
+							nodevar[i]=epoch1
+						}
+						if(newregime==j){
+							nodevar[i]=epoch2
+						}
 					}
 				}
-				else{
-					newtime=current-((current-oldtime)/2)
-					epoch1=exp(-alpha[root.state])*(exp(alpha[oldregime]*newtime)-exp(alpha[oldregime]*oldtime))
-					oldtime=newtime
-					newtime=current
-					epoch2=exp(-alpha[root.state])*(exp(alpha[newregime]*newtime)-exp(alpha[newregime]*oldtime))
-					
-					if(oldregime==j){
-						nodevar[i]=epoch1
-					}
-					if(newregime==j){
-						nodevar[i]=epoch2
-					}
-				}
-				
 				oldregime=newregime
 				n.cov[edges[i,2],edges[i,3]]=nodevar[i]
 			}
@@ -162,7 +200,6 @@ weight.mat<-function(phy, edges, Rate.mat, root.state, assume.station=TRUE){
 				nn<-Ancestors(phy,i)
 				S[nn,i]<-1
 			}
-			
 			#Convert to a sparse matrix
 			S<-as.matrix.csr(S)
 			#Create a matrix of sums for each node
@@ -183,30 +220,10 @@ weight.mat<-function(phy, edges, Rate.mat, root.state, assume.station=TRUE){
 		}
 		
 	}
-
 	#Restandardizes W so that the rows sum to 1 -- Generalized. Will reduce to the simpler model if assuming 1 alpha parameter
 	W<-W/rowSums(W)
 	
 	W
 }
 
-#Utility function for obtaining mrcas for each species pair
-Ancestors<-function (x, node, type = c("all", "parent")) 
-{
-    parents <- x$edge[, 1]
-    child <- x$edge[, 2]
-    pvector <- numeric(max(x$edge)) # parents
-    pvector[child] <- parents    
-    type <- match.arg(type)
-    if (type == "parent") 
-	return(pvector[node])
-    res <- numeric(0)
-    repeat {
-        anc <- pvector[node]
-        if (anc == 0) break
-        res <- c(res, anc)
-        node <- anc
-    }
-    res
-}
 
