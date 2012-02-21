@@ -9,21 +9,20 @@
 #global OU (OU1), multiple regime OU (OUM), multiple sigmas (OUMV), multiple alphas (OUMA), 
 #and the multiple alphas and sigmas (OUMVA). 
 
-OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"), root.station=TRUE, ip=1, plot.resid=TRUE, clade=NULL, eigenvect=FALSE){
+OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"), simmap.tree=FALSE, root.station=TRUE, ip=1, plot.resid=TRUE, clade=NULL, eigenvect=FALSE){
 
 	#Makes sure the data is in the same order as the tip labels
 	data<-data.frame(data[,2], data[,3], row.names=data[,1])
 	data<-data[phy$tip.label,]
-	
 	#Values to be used throughout
 	n=max(phy$edge[,1])
 	ntips=length(phy$tip.label)
-	
-	#Will label the clade of interest
+	ip=ip
+	#Will label the clade of interest if the user so chooses:
 	if(is.null(clade)){
 		phy=phy
 	}
-	else{
+	if(!is.null(clade) & simmap.tree==FALSE){
 		node<-mrca(phy)[clade[1],clade[2]]
 		int<-c(node,Descendants(phy,node, "all"))
 		tips<-int[int<ntips]
@@ -34,65 +33,95 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 		pp<-int-length(phy$tip.label)
 		phy$node.label[pp]<-2
 	}
-	int.states<-factor(phy$node.label)
-	phy$node.label=as.numeric(int.states)
-	tip.states<-factor(data[,1])
-	data[,1]<-as.numeric(tip.states)
-	k<-length(levels(int.states))
-	ip=ip
-	#A boolean for whether the root theta should be estimated -- default is that it should be.
-	root.station=root.station
-	
 	if (is.character(model)) {
-		
 		if (model == "BM1"| model == "OU1"){
-			##Begins the construction of the edges matrix -- similar to the ouch format##
-			#Makes a vector of absolute times in proportion of the total length of the tree
-			branch.lengths=rep(0,(n-1))
-			branch.lengths[(ntips+1):(n-1)]=branching.times(phy)[-1]/max(branching.times(phy))
-			
-			#Obtain root state -- for both models assume the root state to be 1 since no other state is used even if provided in the tree
-			root.state<-1
-			#New tree matrix to be used for subsetting regimes
-			edges=cbind(c(1:(n-1)),phy$edge,phy$edge.length)
-			edges=edges[sort.list(edges[,3]),]
-			
-			edges[,4]=branch.lengths
-			regime <- matrix(0,nrow=length(edges[,1]),ncol=2)
-			regime[,1]<-1
-			regime[,2]<-0
-			
-			edges=cbind(edges,regime)
-		}
-		else{
-			##Begins the construction of the edges matrix -- similar to the ouch format##
-			#Makes a vector of absolute times in proportion of the total length of the tree
-			branch.lengths=rep(0,(n-1))
-			branch.lengths[(ntips+1):(n-1)]=branching.times(phy)[-1]/max(branching.times(phy))
-			
-			#Obtain root state and internal node labels
-			root.state<-phy$node.label[1]
-			int.state<-phy$node.label[-1]
-			#New tree matrix to be used for subsetting regimes
-			edges=cbind(c(1:(n-1)),phy$edge,phy$edge.length)
-			edges=edges[sort.list(edges[,3]),]
-			
-			edges[,4]=branch.lengths
-			
-			mm<-c(data[,1],int.state)
-			
-			regime <- matrix(0,nrow=length(mm),ncol=length(unique(mm)))
-			#Generates an indicator matrix from the regime vector
-			for (i in 1:length(mm)) {
-				regime[i,mm[i]] <- 1 
-			}
-			#Finishes the edges matrix
-			edges=cbind(edges,regime)
-			
+			simmap.tree=FALSE
 		}
 	}
-	#Resort the edge matrix so that it looks like the original matrix order
-	edges=edges[sort.list(edges[,1]),]
+	if(simmap.tree==TRUE){
+		k<-length(colnames(phy$mapped.edge))
+		int.states<-factor(colnames(phy$mapped.edge))
+		tip.states<-factor(data[,1])
+		data[,1]<-as.numeric(tip.states)
+		#A boolean for whether the root theta should be estimated -- default is that it should be.
+		root.station=root.station
+		#Obtains the state at the root
+		root.state=which(colnames(phy$mapped.edge)==names(phy$maps[[1]]))
+		##Begins the construction of the edges matrix -- similar to the ouch format##
+		#Makes a vector of absolute times in proportion of the total length of the tree
+		branch.lengths=rep(0,(n-1))
+		branch.lengths[(ntips+1):(n-1)]=branching.times(phy)[-1]/max(branching.times(phy))
+		
+		#New tree matrix to be used for subsetting regimes
+		edges=cbind(c(1:(n-1)),phy$edge,phy$edge.length)
+		edges=edges[sort.list(edges[,3]),]
+		
+		edges[,4]=branch.lengths
+		
+		#Resort the edge matrix so that it looks like the original matrix order
+		edges=edges[sort.list(edges[,1]),]
+	}
+	if(simmap.tree==FALSE){
+		int.states<-factor(phy$node.label)
+		k<-length(levels(int.states))
+		phy$node.label=as.numeric(int.states)
+		tip.states<-factor(data[,1])
+		data[,1]<-as.numeric(tip.states)
+		#A boolean for whether the root theta should be estimated -- default is that it should be.
+		root.station=root.station
+		if (is.character(model)) {			
+			if (model == "BM1"| model == "OU1"){
+				##Begins the construction of the edges matrix -- similar to the ouch format##
+				#Makes a vector of absolute times in proportion of the total length of the tree
+				k=length(levels(tip.states))
+				phy$node.label<-sample(c(1,2),phy$Nnode, replace=T)
+				int.states=length(levels(tip.states))
+				#Since we only really have one global regime, make up the internal nodes -- this could be improved
+				phy$node.label<-as.numeric(int.states)
+				branch.lengths=rep(0,(n-1))
+				branch.lengths[(ntips+1):(n-1)]=branching.times(phy)[-1]/max(branching.times(phy))
+				
+				#Obtain root state -- for both models assume the root state to be 1 since no other state is used even if provided in the tree
+				root.state<-1
+				#New tree matrix to be used for subsetting regimes
+				edges=cbind(c(1:(n-1)),phy$edge,phy$edge.length)
+				edges=edges[sort.list(edges[,3]),]
+				
+				edges[,4]=branch.lengths
+				regime <- matrix(0,nrow=length(edges[,1]),ncol=2)
+				regime[,1]<-1
+				regime[,2]<-0
+				
+				edges=cbind(edges,regime)
+			}
+			else{
+				##Begins the construction of the edges matrix -- similar to the ouch format##
+				#Makes a vector of absolute times in proportion of the total length of the tree
+				branch.lengths=rep(0,(n-1))
+				branch.lengths[(ntips+1):(n-1)]=branching.times(phy)[-1]/max(branching.times(phy))
+				
+				#Obtain root state and internal node labels
+				root.state<-phy$node.label[1]
+				int.state<-phy$node.label[-1]
+				#New tree matrix to be used for subsetting regimes
+				edges=cbind(c(1:(n-1)),phy$edge,phy$edge.length)
+				edges=edges[sort.list(edges[,3]),]
+				
+				edges[,4]=branch.lengths
+				
+				mm<-c(data[,1],int.state)
+				regime <- matrix(0,nrow=length(mm),ncol=length(unique(mm)))
+				#Generates an indicator matrix from the regime vector
+				for (i in 1:length(mm)) {
+					regime[i,mm[i]] <- 1 
+				}
+				#Finishes the edges matrix
+				edges=cbind(edges,regime)
+			}
+		}
+		#Resort the edge matrix so that it looks like the original matrix order
+		edges=edges[sort.list(edges[,1]),]
+	}
 	x<-as.matrix(data[,2])
 	
 	#Matches the model with the appropriate parameter matrix structure
@@ -154,10 +183,9 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 	dev<-function(p){
 		
 		Rate.mat[] <- c(p, 0.0000000001)[index.mat]
-		
 		N<-length(x[,1])
-		V<-varcov.ou(phy, edges, Rate.mat, root.state=root.state)
-		W<-weight.mat(phy, edges, Rate.mat, root.state=root.state, assume.station=bool)
+		V<-varcov.ou(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree)
+		W<-weight.mat(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, assume.station=bool)
 		
 		theta<-pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)%*%t(W)%*%pseudoinverse(V)%*%x
 		
@@ -186,8 +214,8 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 		Rate.mat[] <- c(p, 0.0000000001)[index.mat]
 		
 		N<-length(x[,1])
-		V<-varcov.ou(phy, edges, Rate.mat, root.state=root.state)
-		W<-weight.mat(phy, edges, Rate.mat, root.state=root.state, assume.station=bool)
+		V<-varcov.ou(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree)
+		W<-weight.mat(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, assume.station=bool)
 		
 		theta<-pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)%*%t(W)%*%pseudoinverse(V)%*%x
 		
@@ -298,13 +326,12 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 		rownames(obj$index.matrix)<-c("alpha","sigma.sq")
 		colnames(obj$index.matrix)<-levels(int.states)
 		#If any eigenvalue is less than 0 then the solution is not the maximum likelihood solution
-    if (any(obj$eigval<0)) {
-		  obj$Diagnostic<-'The objective function may be at a saddle point -- check eigenvectors or try a simpler model'
-    }
-    else{obj$Diagnostic<-'Arrived at a reliable solution'}
-
-	}
-	else{obj$Diagnostic<-'Arrived at a reliable solution'}
-	
+		if (any(obj$eigval<0)) {
+			obj$Diagnostic<-'The objective function may be at a saddle point -- check eigenvectors or try a simpler model'
+		}
+		else{obj$Diagnostic<-'Arrived at a reliable solution'
+		}
+	}	
 	obj
 }
+
