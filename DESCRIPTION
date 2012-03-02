@@ -1,6 +1,6 @@
 Package: OUwie
-Version: 1.13
-Date: 2012-2-19
+Version: 1.15
+Date: 2012-3-1
 Title: Analysis of evolutionary rates in an OU framework
 Author: Jeremy M. Beaulieu <jeremy.beaulieu@yale.edu>, Brian O'Meara
         <bomeara@utk.edu>
@@ -16,6 +16,6 @@ Description: Calculates and compares rate differences of continuous
 License: GPL (>= 2)
 Repository: CRAN
 Repository/R-Forge/Project: ouwie
-Repository/R-Forge/Revision: 56
-Packaged: 2012-02-19 19:15:57 UTC; rforge
-Date/Publication: 2012-02-21 06:58:14
+Repository/R-Forge/Revision: 58
+Packaged: 2012-03-02 03:16:54 UTC; rforge
+Date/Publication: 2012-03-02 15:25:55
