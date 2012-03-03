@@ -10,7 +10,8 @@ weight.mat<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE, assume
 		k=length(colnames(phy$mapped.edge))
 	}
 	if(simmap.tree==FALSE){
-		k=max(as.numeric(phy$node.label))
+		mm<-dim(edges)
+		k<-length(5:mm[2])
 	}
 	edges=edges
 	oldregime=root.state
