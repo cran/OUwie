@@ -2,7 +2,7 @@
 
 #written by Brian C. OMeara
 
-OUwie.contour<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"),root.station=TRUE, focal.param=NULL, clade=NULL, nrep=1000, sd.mult=3, levels=c(0.5,1,1.5,2),likelihood.boundary=Inf,lwd=2, ...){
+OUwie.contour<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"), simmap.tree=FALSE, root.station=TRUE, focal.param=NULL, clade=NULL, nrep=1000, sd.mult=3, levels=c(0.5,1,1.5,2),likelihood.boundary=Inf,lwd=2, ...){
   #focal.param is something like c("alpha_2","sigma.sq_1"). They are then split on "_"
   if(length(focal.param)!=2) {
      stop("need a focal.param vector of length two")
@@ -10,7 +10,7 @@ OUwie.contour<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA",
   if(sum(grepl("theta",focal.param))>0) {
     stop("contour mapping currently only works for alpha and sigma.sq parameters") 
   }
-  globalMLE<-OUwie(phy=phy,data=data,model=model,root.station=root.station,clade=clade,plot.resid=FALSE,eigenvect=TRUE)
+  globalMLE<-OUwie(phy=phy,data=data,model=model,simmap.tree=simmap.tree,root.station=root.station,clade=clade,plot.resid=FALSE,eigenvect=TRUE)
   focal.param.df<-data.frame(strsplit(focal.param,"_"),stringsAsFactors=FALSE)
   names(focal.param.df)<-c(1,2)
   
@@ -51,7 +51,7 @@ OUwie.contour<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA",
   param1.points<-sample(param1.points,size=length(param1.points),replace=FALSE)
   param2.points<-sample(param2.points,size=length(param2.points),replace=FALSE)
   
-  dev<-function(p,phy,data,model,root.station,focal.param.vector,clade,globalMLE) { #globalMLE is just for figuring out the structure of alpha and sigma.sq
+  dev<-function(p,phy,data,model,simmap.tree,root.station,focal.param.vector,clade,globalMLE) { #globalMLE is just for figuring out the structure of alpha and sigma.sq
     nRegimes<-dim(globalMLE$index.matrix)[2]
     alpha<-rep(NA,nRegimes)
     sigma.sq<-rep(NA,nRegimes)
@@ -78,26 +78,26 @@ OUwie.contour<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA",
         }
       }
     }
-    loglik<-OUwie.fixed(phy=phy,data=data, model=model,root.station=root.station, alpha=alpha, sigma.sq=sigma.sq, theta=NULL, clade=clade)$loglik
+    loglik<-OUwie.fixed(phy=phy,data=data, model=model,simmap.tree=simmap.tree,root.station=root.station, alpha=alpha, sigma.sq=sigma.sq, theta=NULL, clade=clade)$loglik
     print(paste("loglik is ",loglik))
     return(-loglik)
   }
   
-  optimizeSemifixed<-function(X,phy,data,model,root.station,clade,globalMLE) {
+  optimizeSemifixed<-function(X,phy,data,model,simmap.tree,root.station,clade,globalMLE) {
     focal.param.vector<-X
      np<-max(globalMLE$index.matrix)-length(focal.param.vector)
       lower = rep(0.0000000001, np)
 	    upper = rep(20, np)
 	    ip<-1
 	  opts <- list("algorithm"="NLOPT_LN_SBPLX", "maxeval"="1000000", "ftol_rel"=.Machine$double.eps^0.5, "xtol_rel"=.Machine$double.eps^0.5)
-	  out = nloptr(x0=rep(ip, length.out = np), eval_f=dev, lb=lower, ub=upper, opts=opts,phy=phy,data=data, model=model,root.station=root.station, clade=clade, globalMLE=globalMLE,focal.param.vector=focal.param.vector)
+	  out = nloptr(x0=rep(ip, length.out = np), eval_f=dev, lb=lower, ub=upper, opts=opts,phy=phy,data=data, model=model,simmap.tree=simmap.tree,root.station=root.station, clade=clade, globalMLE=globalMLE,focal.param.vector=focal.param.vector)
      return(-1*out$objective)
   }
   
   params.points<-data.frame(param1.points,param2.points)
   names(params.points)<-focal.param
   params.points.list<-split(params.points,row(params.points),drop=TRUE)
-	likelihoods<-(sapply(params.points.list,optimizeSemifixed,phy=phy,data=data, model=model,root.station=root.station, clade=clade, globalMLE=globalMLE,simplify=TRUE))
+	likelihoods<-(sapply(params.points.list,optimizeSemifixed,phy=phy,data=data, model=model, simmap.tree=simmap.tree, root.station=root.station, clade=clade, globalMLE=globalMLE,simplify=TRUE))
 
   #include the MLE in the set
   likelihoods<-c(likelihoods,globalMLE$loglik)
