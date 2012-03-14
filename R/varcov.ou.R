@@ -10,7 +10,8 @@ varcov.ou<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE){
 		k=length(colnames(phy$mapped.edge))
 	}
 	if(simmap.tree==FALSE){
-		k=max(as.numeric(phy$node.label))
+		mm<-dim(edges)
+		k<-length(5:mm[2])
 	}
 	edges[,4]<-1-edges[,4]
 	oldregime=root.state

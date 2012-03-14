@@ -14,6 +14,7 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 	#Makes sure the data is in the same order as the tip labels
 	data<-data.frame(data[,2], data[,3], row.names=data[,1])
 	data<-data[phy$tip.label,]
+
 	#Values to be used throughout
 	n=max(phy$edge[,1])
 	ntips=length(phy$tip.label)
@@ -62,11 +63,19 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 		edges=edges[sort.list(edges[,1]),]
 	}
 	if(simmap.tree==FALSE){
+		#Obtain a a list of all the regime states. This is a solution for instances when tip states and 
+		#the internal nodes are not of equal length:
+		tot.states<-factor(c(phy$node.label,as.character(data[,1])))
+
+		k<-length(levels(tot.states))
+		
+		cat(levels(tot.states),"\n")
+		
 		int.states<-factor(phy$node.label)
-		k<-length(levels(int.states))
-		phy$node.label=as.numeric(int.states)
+		phy$node.label=as.numeric(int.states)		
 		tip.states<-factor(data[,1])
 		data[,1]<-as.numeric(tip.states)
+		
 		#A boolean for whether the root theta should be estimated -- default is that it should be.
 		root.station=root.station
 		if (is.character(model)) {			
@@ -74,7 +83,7 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 				##Begins the construction of the edges matrix -- similar to the ouch format##
 				#Makes a vector of absolute times in proportion of the total length of the tree
 				k=length(levels(tip.states))
-				phy$node.label<-sample(c(1,2),phy$Nnode, replace=T)
+				phy$node.label<-sample(c(1:k),phy$Nnode, replace=T)
 				int.states=length(levels(tip.states))
 				#Since we only really have one global regime, make up the internal nodes -- this could be improved
 				phy$node.label<-as.numeric(int.states)
@@ -242,7 +251,7 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 			obj$AICc <- -2*obj$loglik+(2*(np+1)*(ntips/(ntips-(np+1)-1)))
 			obj$Param.est <- matrix(out$solution[index.mat], dim(index.mat))
 			rownames(obj$Param.est)<-c("alpha","sigma.sq")
-			colnames(obj$Param.est) <- levels(int.states)
+			colnames(obj$Param.est) <- levels(tot.states)
 			theta <- dev.theta(out$solution)
 			obj$ahat <- matrix(theta[1,], 1,2)
 			colnames(obj$ahat) <- c("Estimate", "SE")
@@ -252,7 +261,7 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 			obj$AICc <- -2*obj$loglik+(2*(np+1)*(ntips/(ntips-(np+1)-1)))
 			obj$Param.est <- matrix(out$solution[index.mat], dim(index.mat))
 			rownames(obj$Param.est)<-c("alpha","sigma.sq")
-			colnames(obj$Param.est) <- levels(int.states)
+			colnames(obj$Param.est) <- levels(tot.states)
 			theta <- dev.theta(out$solution)
 			obj$ahat <- matrix(theta[1,], 1,2)
 			colnames(obj$ahat) <- c("Estimate", "SE")
@@ -263,10 +272,11 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 				obj$AICc <- -2*obj$loglik+(2*(np+1)*(ntips/(ntips-(np+1)-1)))
 				obj$Param.est<- matrix(out$solution[index.mat], dim(index.mat))
 				rownames(obj$Param.est)<-c("alpha","sigma.sq")
-				colnames(obj$Param.est)<-levels(int.states)
+				colnames(obj$Param.est)<-levels(tot.states)
 				theta <- dev.theta(out$solution)
 				obj$theta <- matrix(theta[1,], 1,2)
-				colnames(obj$theta) <- c("Estimate", "SE")			}
+				colnames(obj$theta) <- c("Estimate", "SE")			
+			}
 		}
 		if (root.station == FALSE){
 			if (model == "OU1"){
@@ -274,7 +284,7 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 				obj$AICc <- -2*obj$loglik+(2*(np+2)*(ntips/(ntips-(np+2)-1)))
 				obj$Param.est<- matrix(out$solution[index.mat], dim(index.mat))
 				rownames(obj$Param.est)<-c("alpha","sigma.sq")
-				colnames(obj$Param.est)<-levels(int.states)
+				colnames(obj$Param.est)<-levels(tot.states)
 				theta<-dev.theta(out$solution)
 				obj$theta<-theta[1:2,1:2]
 				rownames(obj$theta)<-c("Root", "Primary")
@@ -287,9 +297,9 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 				obj$AICc <- -2*obj$loglik+(2*(np+k+1)*(ntips/(ntips-(np+k+1)-1)))
 				obj$Param.est<- matrix(out$solution[index.mat], dim(index.mat))
 				rownames(obj$Param.est)<-c("alpha","sigma.sq")
-				colnames(obj$Param.est)<-levels(int.states)
+				colnames(obj$Param.est)<-levels(tot.states)
 				obj$theta<-dev.theta(out$solution)
-				rownames(obj$theta)<-c("Root",levels(int.states))
+				rownames(obj$theta)<-c("Root",levels(tot.states))
 				colnames(obj$theta)<-c("Estimate", "SE")
 			}
 		}
@@ -299,9 +309,9 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 				obj$AICc <- -2*obj$loglik+(2*(np+k)*(ntips/(ntips-(np+k)-1)))
 				obj$Param.est<- matrix(out$solution[index.mat], dim(index.mat))
 				rownames(obj$Param.est)<-c("alpha","sigma.sq")
-				colnames(obj$Param.est)<-levels(int.states)				
+				colnames(obj$Param.est)<-levels(tot.states)				
 				obj$theta<-dev.theta(out$solution)
-				rownames(obj$theta)<-c(levels(int.states))
+				rownames(obj$theta)<-c(levels(tot.states))
 				colnames(obj$theta)<-c("Estimate", "SE")
 			}
 		}
@@ -315,7 +325,7 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 	#Using the corpcor package here to overcome possible NAs with calculating the SE
 	obj$Param.SE<-matrix(sqrt(diag(pseudoinverse(h)))[index.mat], dim(index.mat))
 	rownames(obj$Param.SE)<-c("alpha","sigma.sq")
-	colnames(obj$Param.SE)<-levels(int.states)
+	colnames(obj$Param.SE)<-levels(tot.states)
 	#Eigendecomposition of the Hessian to assess reliability of likelihood estimates
 	hess.eig<-eigen(h,symmetric=TRUE)
 	#If eigenvect is TRUE then the eigenvector and index matrix will appear in the list of objects 
@@ -324,7 +334,7 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 		obj$eigvect<-round(hess.eig$vectors, 2)
 		obj$index.matrix <- index.mat
 		rownames(obj$index.matrix)<-c("alpha","sigma.sq")
-		colnames(obj$index.matrix)<-levels(int.states)
+		colnames(obj$index.matrix)<-levels(tot.states)
 		#If any eigenvalue is less than 0 then the solution is not the maximum likelihood solution
 		if (any(obj$eigval<0)) {
 			obj$Diagnostic<-'The objective function may be at a saddle point -- check eigenvectors or try a simpler model'
