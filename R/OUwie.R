@@ -81,7 +81,6 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 			if (model == "BM1"| model == "OU1"){
 				##Begins the construction of the edges matrix -- similar to the ouch format##
 				#Makes a vector of absolute times in proportion of the total length of the tree
-				k=length(levels(tip.states))
 				phy$node.label<-sample(c(1:k),phy$Nnode, replace=T)
 				int.states=length(levels(tip.states))
 				#Since we only really have one global regime, make up the internal nodes -- this could be improved
