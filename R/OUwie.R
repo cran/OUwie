@@ -9,7 +9,7 @@
 #global OU (OU1), multiple regime OU (OUM), multiple sigmas (OUMV), multiple alphas (OUMA), 
 #and the multiple alphas and sigmas (OUMVA). 
 
-OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"), simmap.tree=FALSE, root.station=TRUE, ip=1, plot.resid=TRUE, clade=NULL, eigenvect=FALSE){
+OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"), simmap.tree=FALSE, root.station=TRUE, ip=1, lb=0.000001, ub=1000, plot.resid=TRUE, clade=NULL, eigenvect=FALSE){
 	
 	#Makes sure the data is in the same order as the tip labels
 	data<-data.frame(data[,2], data[,3], row.names=data[,1])
@@ -189,7 +189,7 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 	#Likelihood function for estimating model parameters
 	dev<-function(p){
 		
-		Rate.mat[] <- c(p, 0.00001)[index.mat]
+		Rate.mat[] <- c(p, 0.0000001)[index.mat]
 		N<-length(x[,1])
 		V<-varcov.ou(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree)
 		W<-weight.mat(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, assume.station=bool)
@@ -207,25 +207,26 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 	#Informs the user that the optimization routine has started and starting value is being used (default=1)
 	cat("Begin subplex optimization routine -- Starting value:",ip, "\n")
 	
-	lower = rep(0.00001, np)
-	upper = rep(20, np)
+	lower = rep(lb, np)
+	upper = rep(ub, np)
 	
 	opts <- list("algorithm"="NLOPT_LN_SBPLX", "maxeval"="1000000", "ftol_rel"=.Machine$double.eps^0.5, "xtol_rel"=.Machine$double.eps^0.5)
 	out = nloptr(x0=rep(ip, length.out = np), eval_f=dev, lb=lower, ub=upper, opts=opts)
 	
 	obj$loglik <- -out$objective
 	
-	#Takes estimated parameters from dev and calculates theta for each regime
+	#Takes estimated parameters from dev and calculates theta for each regime:
 	dev.theta<-function(p){
 		
-		Rate.mat[] <- c(p, 0.00001)[index.mat]
+		Rate.mat[] <- c(p, 0.0000001)[index.mat]
 		
 		N<-length(x[,1])
 		V<-varcov.ou(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree)
 		W<-weight.mat(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, assume.station=bool)
 		
 		theta<-pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)%*%t(W)%*%pseudoinverse(V)%*%x
-		
+		#Calculates the hat matrix:
+		#H.mat<-W%*%pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)%*%t(W)%*%pseudoinverse(V)
 		#Standard error of theta -- uses pseudoinverse to overcome singularity issues
 		se<-sqrt(diag(pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)))
 		

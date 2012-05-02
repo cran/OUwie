@@ -4,7 +4,8 @@
 \description{Fits generalized Ornstein-Uhlenbeck-based Hansen models of continuous characters evolving under discrete selective regimes.}
 \usage{
 OUwie(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"),
-simmap.tree=FALSE, root.station=TRUE, ip=1, plot.resid=TRUE, clade=NULL, eigenvect=FALSE)
+simmap.tree=FALSE, root.station=TRUE, ip=1, lb=0.000001, ub=1000, 
+plot.resid=TRUE, clade=NULL, eigenvect=FALSE)
 }       
 \arguments{
 \item{phy}{a phylogenetic tree, in \code{ape} \dQuote{phylo} format and with internal nodes labeled denoting the ancestral selective regimes.}
@@ -13,6 +14,8 @@ simmap.tree=FALSE, root.station=TRUE, ip=1, plot.resid=TRUE, clade=NULL, eigenve
 \item{simmap.tree}{a logical indicating whether the input tree is in SIMMAP format. The default is \code{FALSE}.} 
 \item{root.station}{a logical indicating whether the starting state, \eqn{\theta_0}{theta_0}, should be estimated (see Details).} 
 \item{ip}{initial values used for the likelihood search. Can be a single value or a vector of unique values for each parameter. The default is \code{ip=1}.}
+\item{lb}{lower bound for the likelihood search. The default is \code{lb=0.000001}. Note that this value must be greater than zero.}
+\item{ub}{upper bound for the likelihood search. The default is \code{ub=1000}.}
 \item{plot.resid}{a logical indicating whether the residuals of the model should be plotted. The residuals are ordered in the same way as the tips in the tree, and color coded by selective regime. The default is \code{TRUE}.}
 \item{clade}{a list containing a pair of taxa whose MRCA is the clade of interest (see Details).}
 \item{eigenvect}{a logical indicating whether a matrix of eigenvectors should be written to the working directory. The default is \code{FALSE} (see Details).}
@@ -64,7 +67,7 @@ OUwie(tree,trait,model=c("OUMV"), root.station=TRUE, plot.resid=TRUE, clade=c("t
 
 }
 \references{
-Beaulieu J.M., Jhwueng D.C., Boettiger C., and O'Meara B.C. In press. Modeling stabilizing selection: Expanding the Ornstein-Uhlenbeck model of adaptive evolution. Evolution. In press.
+Beaulieu J.M., Jhwueng D.C., Boettiger C., and O'Meara B.C. 2012. Modeling stabilizing selection: Expanding the Ornstein-Uhlenbeck model of adaptive evolution. Evolution. In press.
 
 O'Meara B.C., Ane C., Sanderson P.C., Wainwright P.C. 2006. Testing for different rates of continuous trait evolution using likelihood. Evolution 60:922-933.
 

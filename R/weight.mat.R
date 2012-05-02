@@ -13,6 +13,7 @@ weight.mat<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE, assume
 		mm<-dim(edges)
 		k<-length(5:mm[2])
 	}
+	pp <- prop.part(phy)
 	edges=edges
 	oldregime=root.state
 	oldtime=0
@@ -26,7 +27,7 @@ weight.mat<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE, assume
 		
 		for(j in 1:k){
 			
-			n.cov=matrix(0, n, n)
+			n.cov=matrix(0, n, 1)
 			nodecode=matrix(c(ntips+1,0,root.state),1,3)
 			
 			#Weights for each species per regime
@@ -91,33 +92,10 @@ weight.mat<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE, assume
 					}
 				}
 				oldregime=newregime
-				n.cov[edges[i,2],edges[i,3]]=nodevar[i]
+				n.cov[edges[i,3],]=nodevar[i]
 			}
-	
-			#Generates the mystical S matrix
-			S<-matrix(0,n,n)
-			for(i in 1:n){
-				nn<-Ancestors(phy,i)
-				S[nn,i]<-1
-			}
-			
-			#Convert to a sparse matrix
-			S<-as.matrix.csr(S)
-			#Create a matrix of sums for each node
-			
-			temp<-n.cov%*%S+n.cov
-			#Remove S, nodecode, and n.cov matrices from memory
-			rm(nodecode)
-			rm(n.cov)
-			rm(S)
-			
-			n.covsums=apply(as.matrix(temp), 2, sum)
-			
-			rm(temp)
-			
-			W[1:(ntips),j]<-t(n.covsums[1:ntips])	
-			rm(n.covsums)
-			
+			w.piece<-mat.gen(phy,n.cov,pp)
+			W[1:(ntips),j]<-diag(w.piece)			
 		}
 		
 	}
@@ -128,7 +106,7 @@ weight.mat<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE, assume
 		
 		for(j in 1:k){
 			
-			n.cov=matrix(0, n, n)
+			n.cov=matrix(0, n, 1)
 			nodecode=matrix(c(ntips+1,0,root.state),1,3)
 			#Weight calculated for the root
 			W[,1]<-exp(-alpha[1]*1)
@@ -192,32 +170,10 @@ weight.mat<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE, assume
 					}
 				}
 				oldregime=newregime
-				n.cov[edges[i,2],edges[i,3]]=nodevar[i]
+				n.cov[edges[i,3]]=nodevar[i]
 			}
-			
-			#Generates the mystical S matrix
-			S<-matrix(0,n,n)
-			for(i in 1:n){
-				nn<-Ancestors(phy,i)
-				S[nn,i]<-1
-			}
-			#Convert to a sparse matrix
-			S<-as.matrix.csr(S)
-			#Create a matrix of sums for each node
-			
-			temp<-n.cov%*%S+n.cov
-			#Remove S, nodecode, and n.cov matrices from memory
-			rm(nodecode)
-			rm(n.cov)
-			rm(S)
-			
-			n.covsums=apply(as.matrix(temp), 2, sum)
-			
-			rm(temp)
-			
-			W[1:(ntips),j+1]<-t(n.covsums[1:ntips])	
-			rm(n.covsums)
-			
+			w.piece<-mat.gen(phy,n.cov,pp)
+			W[1:(ntips),j]<-diag(w.piece)			
 		}
 		
 	}
@@ -225,6 +181,33 @@ weight.mat<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE, assume
 	W<-W/rowSums(W)
 	
 	W
+}
+
+##Matrix generating function taken from vcv.phylo in ape:
+mat.gen<-function(phy,piece.wise,pp){
+	phy <- reorder(phy, "pruningwise")
+    n <- length(phy$tip.label)
+    anc <- phy$edge[,1]
+    des <- phy$edge[,2]
+    ep <- piece.wise[,1]
+	comp <- numeric(n + phy$Nnode)
+    mat <- matrix(0, n, n)
+	
+	for (i in length(anc):1) {
+        focal <- comp[anc[i]]
+        comp[des[i]] <- focal + ep[des[i]]
+        j <- i - 1L
+        while (anc[j] == anc[i] && j > 0) {
+            left <- if (des[j] > n) pp[[des[j] - n]] else des[j]
+            right <- if (des[i] > n) pp[[des[i] - n]] else des[i]
+            mat[left, right] <- mat[right, left] <- focal
+            j <- j - 1L
+        }
+    }
+    diag.elts <- 1 + 0:(n - 1)*(n + 1)
+    mat[diag.elts] <- comp[1:n]
+	
+	mat
 }
 
 

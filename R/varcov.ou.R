@@ -13,6 +13,7 @@ varcov.ou<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE){
 		mm<-dim(edges)
 		k<-length(5:mm[2])
 	}
+	pp <- prop.part(phy)
 	edges[,4]<-1-edges[,4]
 	oldregime=root.state
 	oldtime=0
@@ -20,8 +21,8 @@ varcov.ou<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE){
 	nodevar2=rep(0,max(edges[,3]))
 	alpha=Rate.mat[1,]
 	sigma=Rate.mat[2,]
-	n.cov1=matrix(rep(0,n*n), n, n)
-	n.cov2=matrix(rep(0,n*n), n, n)
+	n.cov1=matrix(rep(0,n), n, 1)
+	n.cov2=matrix(rep(0,n), n, 1)
 	nodecode=matrix(c(ntips+1,0,root.state),1,3)
 	if(simmap.tree==TRUE){
 		
@@ -56,8 +57,8 @@ varcov.ou<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE){
 				newregime<-regimenumber
 			}
 			oldregime=newregime
-			n.cov1[edges[i,2],edges[i,3]]=nodevar1[i]
-			n.cov2[edges[i,2],edges[i,3]]=nodevar2[i]
+			n.cov1[edges[i,3],]=nodevar1[i]
+			n.cov2[edges[i,3],]=nodevar2[i]
 		}
 	}
 	if(simmap.tree==FALSE){
@@ -95,79 +96,42 @@ varcov.ou<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE){
 				nodevar2[i]<-epoch1b+epoch2b
 			}
 			oldregime=newregime
-			n.cov1[edges[i,2],edges[i,3]]=nodevar1[i]
-			n.cov2[edges[i,2],edges[i,3]]=nodevar2[i]
-			
+			n.cov1[edges[i,3],]=nodevar1[i]
+			n.cov2[edges[i,3],]=nodevar2[i]
 		}
 	}	
-	#Remove nodecode matrix from memory
-	rm(nodecode)
-	vcv1<-mat.gen(n.cov1,phy)
-	vcv2<-mat.gen(n.cov2,phy)
+	
+	vcv1<-mat.gen(phy,n.cov1,pp)
+	vcv2<-mat.gen(phy,n.cov2,pp)
 	vcv<-exp(-2*diag(vcv1))*vcv2
-	rm(vcv1)
-	rm(vcv2)
 	
 	vcv
 	
 }
 
-#Utility for building a summary matrix -- slow for now, need to work on speeding up
-mat.gen<-function(mat,phy){
+##Matrix generating function taken from vcv.phylo in ape:
+mat.gen<-function(phy,piece.wise,pp){
+	phy <- reorder(phy, "pruningwise")
+    n <- length(phy$tip.label)
+    anc <- phy$edge[,1]
+    des <- phy$edge[,2]
+    ep <- piece.wise[,1]
+	comp <- numeric(n + phy$Nnode)
+    mat <- matrix(0, n, n)
 	
-	n=max(phy$edge[,1])
-	ntips=length(phy$tip.label)
+	for (i in length(anc):1) {
+        focal <- comp[anc[i]]
+        comp[des[i]] <- focal + ep[des[i]]
+        j <- i - 1L
+        while (anc[j] == anc[i] && j > 0) {
+            left <- if (des[j] > n) pp[[des[j] - n]] else des[j]
+            right <- if (des[i] > n) pp[[des[i] - n]] else des[i]
+            mat[left, right] <- mat[right, left] <- focal
+            j <- j - 1L
+        }
+    }
+    diag.elts <- 1 + 0:(n - 1)*(n + 1)
+    mat[diag.elts] <- comp[1:n]
 	
-	A=matrix(rep(0,n*n), n, n)
-	A[phy$edge]=1
-	mm<-c(1:n)
-	Nt<-t(t(A)*mm)
-	#Convert to a sparse matrix
-	Nt<-as.matrix.csr(Nt)
-	rm(A)
-	
-	#Generates the mystical S matrix
-	S<-matrix(0,n,n)
-	for(i in 1:n){
-		nn<-Ancestors(phy,i)
-		S[nn,i]<-1
-	}
-	
-	#Convert to a sparse matrix
-	S<-as.matrix.csr(S)
-	
-	#Create a matrix of sums for each node
-	temp<-mat%*%S+mat
-	n.covsums=apply(as.matrix(temp), 2, sum)
-	
-	rm(temp)
-	rm(mat)
-	#Generates a matrix that lists the descendants for each ancestral node
-	H.temp=Nt%*%S+Nt
-	rm(Nt)
-	rm(S)
-	H.mat=as.matrix(H.temp[(ntips+1):n,])
-	rm(H.temp)
-	H.mat
-	
-	new.mat<-matrix(0,ntips,ntips)
-	diag(new.mat)=n.covsums[1:ntips]
-	#Enters covariances
-	for(i in 1:length(H.mat[,1])){
-		temp=unique(H.mat[i,])
-		temp=temp[temp!=0]
-		tempR=which(H.mat[i,]==temp[1])
-		tempR=subset(tempR,tempR%in%c(1:ntips))
-		tempL=which(H.mat[i,]==temp[2])
-		tempL=subset(tempL,tempL%in%c(1:ntips))
-		
-		new.mat[tempL,tempR]=n.covsums[i+ntips]	
-		new.mat[tempR,tempL]=n.covsums[i+ntips]	
-	}
-	
-	rm(H.mat)
-	
-	new.mat
-	
+	mat
 }
-
