@@ -135,14 +135,14 @@ OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","O
 		if (model == "BM1"){
 			np=1
 			index<-matrix(TRUE,2,k)
-			Rate.mat[1,1:k]<-0.0000000001
+			Rate.mat[1,1:k]<-0.0000001
 			Rate.mat[2,1:k]<-sigma.sq
 			bool=TRUE
 		}
 		if (model == "BMS"){
 			np=k
 			index<-matrix(TRUE,2,k)
-			Rate.mat[1,1:k]<-0.0000000001
+			Rate.mat[1,1:k]<-0.0000001
 			Rate.mat[2,1:k]<-sigma.sq
 			bool=FALSE
 		}

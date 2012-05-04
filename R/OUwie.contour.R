@@ -2,7 +2,7 @@
 
 #written by Brian C. OMeara
 
-OUwie.contour<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"), simmap.tree=FALSE, root.station=TRUE, focal.param=NULL, clade=NULL, nrep=1000, sd.mult=3, levels=c(0.5,1,1.5,2),likelihood.boundary=Inf,lwd=2, ...){
+OUwie.contour<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"), simmap.tree=FALSE, root.station=TRUE, lb=0.000001, ub=1000, focal.param=NULL, clade=NULL, nrep=1000, sd.mult=3, levels=c(0.5,1,1.5,2),likelihood.boundary=Inf,lwd=2, ...){
   #focal.param is something like c("alpha_2","sigma.sq_1"). They are then split on "_"
   if(length(focal.param)!=2) {
      stop("need a focal.param vector of length two")
@@ -10,7 +10,7 @@ OUwie.contour<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA",
   if(sum(grepl("theta",focal.param))>0) {
     stop("contour mapping currently only works for alpha and sigma.sq parameters") 
   }
-  globalMLE<-OUwie(phy=phy,data=data,model=model,simmap.tree=simmap.tree,root.station=root.station,clade=clade,plot.resid=FALSE,eigenvect=TRUE)
+  globalMLE<-OUwie(phy=phy,data=data,model=model,simmap.tree=simmap.tree,root.station=root.station,lb=lb, ub=ub, clade=clade,plot.resid=FALSE,eigenvect=TRUE)
   focal.param.df<-data.frame(strsplit(focal.param,"_"),stringsAsFactors=FALSE)
   names(focal.param.df)<-c(1,2)
   
@@ -78,26 +78,26 @@ OUwie.contour<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA",
         }
       }
     }
-    loglik<-OUwie.fixed(phy=phy,data=data, model=model,simmap.tree=simmap.tree,root.station=root.station, alpha=alpha, sigma.sq=sigma.sq, theta=NULL, clade=clade)$loglik
+    loglik<-OUwie.fixed(phy=phy,data=data, model=model,simmap.tree=simmap.tree,root.station=root.station,alpha=alpha, sigma.sq=sigma.sq, theta=NULL, clade=clade)$loglik
     print(paste("loglik is ",loglik))
     return(-loglik)
   }
   
-  optimizeSemifixed<-function(X,phy,data,model,simmap.tree,root.station,clade,globalMLE) {
+  optimizeSemifixed<-function(X,phy,data,model,simmap.tree,root.station,lb,ub,clade,globalMLE) {
     focal.param.vector<-X
      np<-max(globalMLE$index.matrix)-length(focal.param.vector)
-      lower = rep(0.0000000001, np)
-	    upper = rep(20, np)
-	    ip<-1
+	  lower = rep(lb, np)
+	  upper = rep(ub, np)
+	  ip<-1
 	  opts <- list("algorithm"="NLOPT_LN_SBPLX", "maxeval"="1000000", "ftol_rel"=.Machine$double.eps^0.5, "xtol_rel"=.Machine$double.eps^0.5)
-	  out = nloptr(x0=rep(ip, length.out = np), eval_f=dev, lb=lower, ub=upper, opts=opts,phy=phy,data=data, model=model,simmap.tree=simmap.tree,root.station=root.station, clade=clade, globalMLE=globalMLE,focal.param.vector=focal.param.vector)
-     return(-1*out$objective)
+	  out = nloptr(x0=rep(ip, length.out = np), eval_f=dev, opts=opts, phy=phy,data=data, model=model,simmap.tree=simmap.tree,root.station=root.station, lb=lower, ub=upper, clade=clade, globalMLE=globalMLE,focal.param.vector=focal.param.vector)
+	  return(-1*out$objective)
   }
   
   params.points<-data.frame(param1.points,param2.points)
   names(params.points)<-focal.param
   params.points.list<-split(params.points,row(params.points),drop=TRUE)
-	likelihoods<-(sapply(params.points.list,optimizeSemifixed,phy=phy,data=data, model=model, simmap.tree=simmap.tree, root.station=root.station, clade=clade, globalMLE=globalMLE,simplify=TRUE))
+	likelihoods<-(sapply(params.points.list,optimizeSemifixed,phy=phy,data=data, model=model, simmap.tree=simmap.tree,root.station=root.station,lb=lb,ub=ub,clade=clade,globalMLE=globalMLE,simplify=TRUE))
 
   #include the MLE in the set
   likelihoods<-c(likelihoods,globalMLE$loglik)
@@ -107,7 +107,7 @@ OUwie.contour<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA",
   likelihoods.rescaled<-(-1)*likelihoods
   likelihoods.rescaled<-likelihoods.rescaled-min(likelihoods.rescaled)
   goodLikelihoodsIndex<-which(likelihoods.rescaled<likelihood.boundary)
-  while(length(goodLikelihoodsIndex)<5) { #just to deal with extreme cases with few points
+  while(length(goodLikelihoodsIndex)<5){ #just to deal with extreme cases with few points
      likelihood.boundary<-2*likelihood.boundary
       goodLikelihoodsIndex<-which(likelihoods.rescaled<likelihood.boundary)
   }
@@ -122,8 +122,7 @@ OUwie.contour<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA",
   points(x=as.numeric(focal.param.df[3,1]),y=as.numeric(focal.param.df[3,2]),pch=20,col="red")
   lines(x=c(as.numeric(focal.param.df[3,1])-1.96*as.numeric(focal.param.df[4,1]),as.numeric(focal.param.df[3,1])+1.96*as.numeric(focal.param.df[4,1])),y=rep(as.numeric(focal.param.df[3,2]),2))
   lines(x=rep(as.numeric(focal.param.df[3,1]),2),y=c(as.numeric(focal.param.df[3,2])-1.96*as.numeric(focal.param.df[4,2]),as.numeric(focal.param.df[3,2])+1.96*as.numeric(focal.param.df[4,2])))
-  
-  
+
   finalResults<-data.frame(param1.points,param2.points,likelihoods)
   names(finalResults)<-c(focal.param,"loglik")
   return(finalResults)             

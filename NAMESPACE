@@ -1,2 +1,2 @@
 export(OUwie,OUwie.sim,OUwie.fixed,OUwie.contour)
-import(ape,nloptr,numDeriv,lattice,SparseM,grDevices,phytools, phangorn)
+import(ape,nloptr,numDeriv,lattice,grDevices,phytools, phangorn)

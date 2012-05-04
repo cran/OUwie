@@ -4,7 +4,8 @@
 \description{Plots likelihood surface for pairs of free parameters for generalized Ornstein-Uhlenbeck-based Hansen models of continuous characters evolving under discrete selective regimes.}
 \usage{
 OUwie.contour(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"),simmap.tree=FALSE,
-root.station=TRUE, focal.param=NULL, clade=NULL, nrep=1000, sd.mult=3, levels=c(0.5,1,1.5,2), likelihood.boundary=Inf, lwd=2, \dots)
+root.station=TRUE, lb=0.000001, ub=1000, focal.param=NULL, clade=NULL, nrep=1000, sd.mult=3, 
+levels=c(0.5,1,1.5,2), likelihood.boundary=Inf, lwd=2, \dots)
 }       
 \arguments{
 \item{phy}{a phylogenetic tree, in \code{ape} \dQuote{phylo} format and with internal nodes labeled denoting the ancestral selective regimes.}
@@ -12,6 +13,8 @@ root.station=TRUE, focal.param=NULL, clade=NULL, nrep=1000, sd.mult=3, levels=c(
 \item{model}{models to fit to comparative data (see Details).}
 \item{simmap.tree}{a logical indicating whether the input tree is in SIMMAP format. The default is \code{FALSE}.} 
 \item{root.station}{a logical indicating whether the starting state, \eqn{\theta_0}{theta_0}, should be estimated (see Details).}
+\item{lb}{lower bound for the likelihood search. The default is \code{lb=0.000001}. Note that this value must be greater than zero.}
+\item{ub}{upper bound for the likelihood search. The default is \code{ub=1000}.}
 \item{focal.param}{a character vector with the pair of parameters (sigma.sq and/or alpha) to plot (see Details).}
 \item{clade}{a list containing a pair of taxa whose MRCA is the clade of interest (see Details).}
 \item{nrep}{the number of points to use for the likelihood surface.}
@@ -36,16 +39,17 @@ IMPORTANT: this currently written to only do sigma.sq and/or alpha, not theta.
 \examples{
 data(tworegime)
 
-#Examine the surface for the two sigma values. You will probably want to do far more points than 10
+#Examine the surface for the two sigma values. You will want to do at least nrep=200 points, probably more (just a few are done here for speed, but the plot will not be very meaningful)
 OUwie.contour(tree,trait, model=c("OUMV"), root.station=TRUE, nrep=10, focal.param=c("sigma.sq_1","sigma.sq_2"), bty="n")
 
 }
 \references{
-Beaulieu J.M., Jhwueng D.C., Boettiger, C., and O'Meara B.C. In press. Modeling stabilizing selection: Expanding the Ornstein-Uhlenbeck model of adaptive evolution. Evolution. In press.
+Beaulieu J.M., Jhwueng D.C., Boettiger, C., and O'Meara B.C. 2012. Modeling stabilizing selection: Expanding the Ornstein-Uhlenbeck model of adaptive evolution. Evolution. In press.
 
 O'Meara B.C., Ane C., Sanderson P.C., Wainwright P.C. 2006. Testing for different rates of continuous trait evolution using likelihood. Evolution 60:922-933.
 
 Butler M.A., King A.A. 2004. Phylogenetic comparative analysis: A modeling approach for adaptive evolution. American Naturalist 164:683-695.
 }
-\author{Jeremy M. Beaulieu and Brian C. O'Meara}
+\author{Brian C. O'Meara and Jeremy M. Beaulieu}
 \keyword{models}
+
