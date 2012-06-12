@@ -19,14 +19,24 @@ root.station=TRUE, alpha=NULL, sigma.sq=NULL, theta=NULL, clade=NULL)
 }
 \details{
 The input is a tree and a data file. The tree must be of class \dQuote{phylo} and must contain the ancestral selective regimes as internal node labels. The data file is a dataframe that must have column entries in the following order: [,1] species names and [,2] their current selective regime. The user specifies the  parameter values (i.e. \eqn{\alpha}{alpha}, \eqn{\sigma^2}{sigma^2}, and \eqn{\theta}{theta}).}
+
 \value{
-\item{loglik}{the maximum log-likelihood.}
-\item{AIC}{Akaike information criterion.}
-\item{AICc}{Akaike information criterion corrected for sample-size.}
-\item{Param.est}{a matrix containing \eqn{\alpha}{alpha} and \eqn{\sigma^2}{sigma^2}.}
-\item{theta}{a matrix containing \eqn{\theta}{theta}. Note: if \code{model=OU1} and \code{root.station=TRUE}, then \code{theta}=\eqn{\theta_0}{theta_0}.}
-\item{ahat}{the estimate of the root for models based on a Brownian motion process (i.e., \code{model=BM1} or \code{model=BMS}).}
+\code{OUwie.fixed} returns an object of class \code{OUwie.fixed}. This is a list with elements:
+\item{$loglik}{the maximum negative log-likelihood.}
+\item{$AIC}{Akaike information criterion.}
+\item{$AICc}{Akaike information criterion corrected for sample-size.}
+\item{$model}{The model being fit}
+\item{$solution}{a matrix containing the maximum likelihood estimates of \eqn{\alpha}{alpha} and \eqn{\sigma^2}{sigma^2}.}
+\item{$theta}{a matrix containing the maximum likelihood estimates of \eqn{\theta}{theta}.}
+\item{$tot.state}{A vector of names for the different regimes}
+\item{$index.mat}{The indices of the parameters being estimated are returned. The numbers correspond to the row in the \code{eigvect} and can useful for identifying the parameters that are causing the objective function to be at a saddlepoint (see Details)}
+\item{$simmap.tree}{A logical indicating whether the input phylogeny is a SIMMAP formatted tree.}
+\item{$data}{User-supplied dataset}
+\item{$phy}{User-supplied tree}
+\item{$root.station}{A logical indicating whether the starting state, \eqn{\theta_0}{theta_0}, was estimated}
+\item{$res}{A vector of residuals from the model fit.  The residuals are ordered in the same way as the tips in the tree.}
 }
+
 \examples{
 data(tworegime)
 
