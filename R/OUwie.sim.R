@@ -174,14 +174,28 @@ OUwie.sim <- function(phy, data=NULL, simmap.tree=FALSE, alpha, sigma.sq, theta0
 				nodecode=rbind(nodecode,newrow)
 				oldtime=newtime
 			}
-			
-			for (regimeindex in 1:length(currentmap)){
-				regimeduration<-currentmap[regimeindex]
+			if(length(phy$maps[[i]])==1){
+				regimeduration<-currentmap[1]
 				newtime<-oldtime+regimeduration
-				regimenumber<-which(colnames(phy$mapped.edge)==names(currentmap)[regimeindex])
-				x[edges[i,3],]=x[edges[i,3],]+x[edges[i,2],]*exp(-alpha[regimenumber]*(newtime-oldtime))+(theta[regimenumber])*(1-exp(-alpha[regimenumber]*(newtime-oldtime)))+sigma[regimenumber]*rnorm(1,0,1)*sqrt((1-exp(-2*alpha[regimenumber]*(newtime-oldtime)))/(2*alpha[regimenumber]))
+				regimenumber<-which(colnames(phy$mapped.edge)==names(currentmap)[1])
+				x[edges[i,3],]=x[edges[i,2],]*exp(-alpha[regimenumber]*(newtime-oldtime))+(theta[regimenumber])*(1-exp(-alpha[regimenumber]*(newtime-oldtime)))+sigma[regimenumber]*rnorm(1,0,1)*sqrt((1-exp(-2*alpha[regimenumber]*(newtime-oldtime)))/(2*alpha[regimenumber]))
 				oldtime<-newtime
 				newregime<-regimenumber
+			}
+			if(length(phy$maps[[i]])>1){
+				regimeduration<-currentmap[1]
+				newtime<-oldtime+regimeduration
+				regimenumber<-which(colnames(phy$mapped.edge)==names(currentmap)[1])
+				x[edges[i,3],]=x[edges[i,2],]*exp(-alpha[regimenumber]*(newtime-oldtime))+(theta[regimenumber])*(1-exp(-alpha[regimenumber]*(newtime-oldtime)))+sigma[regimenumber]*rnorm(1,0,1)*sqrt((1-exp(-2*alpha[regimenumber]*(newtime-oldtime)))/(2*alpha[regimenumber]))				
+				oldtime<-newtime
+				for (regimeindex in 2:length(currentmap)){
+					regimeduration<-currentmap[regimeindex]
+					newtime<-oldtime+regimeduration
+					regimenumber<-which(colnames(phy$mapped.edge)==names(currentmap)[regimeindex])
+					x[edges[i,3],]=x[edges[i,3],]*exp(-alpha[regimenumber]*(newtime-oldtime))+(theta[regimenumber])*(1-exp(-alpha[regimenumber]*(newtime-oldtime)))+sigma[regimenumber]*rnorm(1,0,1)*sqrt((1-exp(-2*alpha[regimenumber]*(newtime-oldtime)))/(2*alpha[regimenumber]))
+					oldtime<-newtime
+					newregime<-regimenumber
+				}
 			}
 			oldregime=newregime
 		}

@@ -6,6 +6,10 @@ weight.mat<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE, assume
 	
 	n=max(phy$edge[,1])
 	ntips=length(phy$tip.label)
+	if(is.null(root.state)) {
+	  root.state<-which(edges[dim(edges)[1] , ]==1)-4 
+	  edges<-edges[-1*dim(edges)[1],]
+	}
 	if(simmap.tree==TRUE){
 		k=length(colnames(phy$mapped.edge))
 	}
@@ -60,6 +64,9 @@ weight.mat<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE, assume
 						regimenumber<-which(colnames(phy$mapped.edge)==names(currentmap)[regimeindex])
 						if (regimenumber==j){
 							nodevar[i]<-exp(-alpha[root.state])*(exp(alpha[regimenumber]*newtime)-exp(alpha[regimenumber]*oldtime))
+						}
+						else{
+							nodevar[i]=0
 						}
 						oldtime<-newtime
 						newregime<-regimenumber
@@ -140,6 +147,9 @@ weight.mat<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE, assume
 						if (regimenumber==j) {
 							nodevar[i]<-exp(-alpha[root.state])*(exp(alpha[regimenumber]*newtime)-exp(alpha[regimenumber]*oldtime))
 						}
+						else{
+							nodevar[i]=0
+						}
 						oldtime<-newtime
 						newregime<-regimenumber
 					}	
@@ -173,7 +183,7 @@ weight.mat<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE, assume
 				n.cov[edges[i,3]]=nodevar[i]
 			}
 			w.piece<-mat.gen(phy,n.cov,pp)
-			W[1:(ntips),j]<-diag(w.piece)			
+			W[1:(ntips),j+1]<-diag(w.piece)			
 		}
 		
 	}
