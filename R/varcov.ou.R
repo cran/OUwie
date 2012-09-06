@@ -2,12 +2,13 @@
 
 #written by Jeremy M. Beaulieu
 
-varcov.ou<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE){
+varcov.ou<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE, scaleHeight=FALSE){
 	
-  if(is.null(root.state)) {
-    root.state<-which(edges[dim(edges)[1] , ]==1)-4 
-    edges<-edges[-1*dim(edges)[1],]
-  }
+	if(is.null(root.state)) {
+		root.state<-which(edges[dim(edges)[1],]==1)-5
+		print(root.state)
+		edges<-edges[-1*dim(edges)[1],]
+	}
 	n=max(phy$edge[,1])
 	ntips=length(phy$tip.label)
 	if(simmap.tree==TRUE){
@@ -15,19 +16,17 @@ varcov.ou<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE){
 	}
 	if(simmap.tree==FALSE){
 		mm<-dim(edges)
-		k<-length(5:mm[2])
+		k<-length(6:mm[2])
 	}
 	pp <- prop.part(phy)
-	edges[,4]<-1-edges[,4]
 	oldregime=root.state
-	oldtime=0
 	nodevar1=rep(0,max(edges[,3]))
 	nodevar2=rep(0,max(edges[,3]))
 	alpha=Rate.mat[1,]
 	sigma=Rate.mat[2,]
 	n.cov1=matrix(rep(0,n), n, 1)
 	n.cov2=matrix(rep(0,n), n, 1)
-	nodecode=matrix(c(ntips+1,0,root.state),1,3)
+	nodecode=matrix(c(ntips+1,root.state),1,2)
 	if(simmap.tree==TRUE){
 		
 		regimeindex<-colnames(phy$mapped.edge)
@@ -37,18 +36,21 @@ varcov.ou<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE){
 			anc = edges[i, 2]
 			desc = edges[i, 3]
 			
-			currentmap<-phy$maps[[i]]
-			current=edges[i,4]
+			if(scaleHeight==TRUE){
+				currentmap<-phy$maps[[i]]/max(nodeHeights(phy))
+			}
+			else{
+				currentmap<-phy$maps[[i]]
+			}
+			oldtime=edges[i,4]
 			
 			if(anc%in%nodecode[,1]){
 				start=which(nodecode[,1]==anc)
-				oldtime=nodecode[start,2]
-				oldregime=nodecode[start,3]
+				oldregime=nodecode[start,2]
 			}
 			else{
-				newrow=c(anc,newtime,oldregime)
+				newrow=c(anc,oldregime)
 				nodecode=rbind(nodecode,newrow)
-				oldtime=newtime
 			}
 			for (regimeindex in 1:length(currentmap)){
 				regimeduration<-currentmap[regimeindex]
@@ -70,30 +72,28 @@ varcov.ou<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE){
 		for(i in 1:length(edges[,1])){
 			anc = edges[i,2]
 			desc = edges[i,3]
-			newregime=which(edges[i,5:(k+4)]==1)
-			current=edges[i,4]
+			newregime=which(edges[i,6:(k+5)]==1)
+			oldtime=edges[i,4]
+			newtime=edges[i,5]
 			
 			if(anc%in%nodecode[,1]){
 				start=which(nodecode[,1]==anc)
-				oldtime=nodecode[start,2]
-				oldregime=nodecode[start,3]
+				oldregime=nodecode[start,2]
 			}
 			else{
-				newrow=c(anc,newtime,oldregime)
+				newrow=c(anc,oldregime)
 				nodecode=rbind(nodecode,newrow)
-				oldtime=newtime
 			}
 			if(oldregime==newregime){
-				newtime=current
 				nodevar1[i]=alpha[oldregime]*(newtime-oldtime)
 				nodevar2[i]=sigma[oldregime]*((exp(2*alpha[oldregime]*newtime)-exp(2*alpha[oldregime]*oldtime))/(2*alpha[oldregime]))
 			}
 			else{
-				newtime=current-((current-oldtime)/2)
-				epoch1a=alpha[oldregime]*(newtime-oldtime)
-				epoch1b=sigma[oldregime]*((exp(2*alpha[oldregime]*newtime)-exp(2*alpha[oldregime]*oldtime))/(2*alpha[oldregime]))
-				oldtime=newtime
-				newtime=current
+				halftime=newtime-((newtime-oldtime)/2)
+				epoch1a=alpha[oldregime]*(halftime-oldtime)
+				epoch1b=sigma[oldregime]*((exp(2*alpha[oldregime]*halftime)-exp(2*alpha[oldregime]*oldtime))/(2*alpha[oldregime]))
+				oldtime=halftime
+				newtime=newtime
 				epoch2a=alpha[newregime]*(newtime-oldtime)
 				epoch2b=sigma[newregime]*((exp(2*alpha[newregime]*newtime)-exp(2*alpha[newregime]*oldtime))/(2*alpha[newregime]))
 				nodevar1[i]<-epoch1a+epoch2a
