@@ -9,11 +9,22 @@
 #global OU (OU1), multiple regime OU (OUM), multiple sigmas (OUMV), multiple alphas (OUMA), 
 #and the multiple alphas and sigmas (OUMVA). 
 
-OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"), simmap.tree=FALSE, root.station=TRUE, ip=1, lb=0.000001, ub=1000, clade=NULL, quiet=FALSE){
-
+OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"), simmap.tree=FALSE, scaleHeight=FALSE, root.station=TRUE, ip=1, lb=0.000001, ub=1000, clade=NULL, mserr=FALSE, diagn=TRUE, quiet=FALSE){
+	
 	#Makes sure the data is in the same order as the tip labels
-	data<-data.frame(data[,2], data[,3], row.names=data[,1])
-	data<-data[phy$tip.label,]
+	if(mserr==FALSE){
+		data<-data.frame(data[,2], data[,3], row.names=data[,1])
+		data<-data[phy$tip.label,]
+	}
+	if(mserr==TRUE){
+		if(!dim(data)[2]==4){
+			stop("You specified measurement error should be incorporated, but this information is missing")
+		}
+		else{
+		data<-data.frame(data[,2], data[,3], data[,4], row.names=data[,1])
+		data<-data[phy$tip.label,]
+		}
+	}
 	#Values to be used throughout
 	n=max(phy$edge[,1])
 	ntips=length(phy$tip.label)
@@ -49,15 +60,12 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 		#Obtains the state at the root
 		root.state=which(colnames(phy$mapped.edge)==names(phy$maps[[1]][1]))
 		##Begins the construction of the edges matrix -- similar to the ouch format##
-		#Makes a vector of absolute times in proportion of the total length of the tree
-		branch.lengths=rep(0,(n-1))
-		branch.lengths[(ntips+1):(n-1)]=branching.times(phy)[-1]/max(branching.times(phy))
+		edges=cbind(c(1:(n-1)),phy$edge,nodeHeights(phy))
 		
-		#New tree matrix to be used for subsetting regimes
-		edges=cbind(c(1:(n-1)),phy$edge,phy$edge.length)
+		if(scaleHeight==TRUE){
+			edges[,4:5]<-edges[,4:5]/max(nodeHeights(phy))
+		}
 		edges=edges[sort.list(edges[,3]),]
-		
-		edges[,4]=branch.lengths
 		
 		#Resort the edge matrix so that it looks like the original matrix order
 		edges=edges[sort.list(edges[,1]),]
@@ -83,38 +91,38 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 				phy$node.label<-sample(c(1:k),phy$Nnode, replace=T)
 				int.states=length(levels(tip.states))
 				#Since we only really have one global regime, make up the internal nodes -- this could be improved
-				phy$node.label<-as.numeric(int.states)
-				branch.lengths=rep(0,(n-1))
-				branch.lengths[(ntips+1):(n-1)]=branching.times(phy)[-1]/max(branching.times(phy))
-				
+				phy$node.label<-as.numeric(int.states)				
 				#Obtain root state -- for both models assume the root state to be 1 since no other state is used even if provided in the tree
 				root.state<-1
 				#New tree matrix to be used for subsetting regimes
-				edges=cbind(c(1:(n-1)),phy$edge,phy$edge.length)
+				edges=cbind(c(1:(n-1)),phy$edge,nodeHeights(phy))
+				
+				if(scaleHeight==TRUE){
+					edges[,4:5]<-edges[,4:5]/max(nodeHeights(phy))
+				}
+				
 				edges=edges[sort.list(edges[,3]),]
 				
-				edges[,4]=branch.lengths
 				regime <- matrix(0,nrow=length(edges[,1]),ncol=k)
 				regime[,1]<-1
-				regime[,2:k]<-0
-				
+				if (k>1) {
+					regime[,2:k]<-0
+				}
 				edges=cbind(edges,regime)
 			}
-			else{
-				##Begins the construction of the edges matrix -- similar to the ouch format##
-				#Makes a vector of absolute times in proportion of the total length of the tree
-				branch.lengths=rep(0,(n-1))
-				branch.lengths[(ntips+1):(n-1)]=branching.times(phy)[-1]/max(branching.times(phy))
-				
+			else{			
 				#Obtain root state and internal node labels
 				root.state<-phy$node.label[1]
 				int.state<-phy$node.label[-1]
 				#New tree matrix to be used for subsetting regimes
-				edges=cbind(c(1:(n-1)),phy$edge,phy$edge.length)
+				edges=cbind(c(1:(n-1)),phy$edge,nodeHeights(phy))
+				
+				if(scaleHeight==TRUE){
+					edges[,4:5]<-edges[,4:5]/max(nodeHeights(phy))
+				}
+				
 				edges=edges[sort.list(edges[,3]),]
-				
-				edges[,4]=branch.lengths
-				
+
 				mm<-c(data[,1],int.state)
 				regime <- matrix(0,nrow=length(mm),ncol=length(unique(mm)))
 				#Generates an indicator matrix from the regime vector
@@ -220,22 +228,28 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 		
 		Rate.mat[] <- c(p, 1e-10)[index.mat]
 		N<-length(x[,1])
-		V<-varcov.ou(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree)
-		W<-weight.mat(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, assume.station=bool)
+		V<-varcov.ou(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree,scaleHeight=scaleHeight)
+		W<-weight.mat(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, scaleHeight=scaleHeight,assume.station=bool)
 		
-		theta<-pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)%*%t(W)%*%pseudoinverse(V)%*%x
-		
-		DET<-determinant(V, logarithm=TRUE)
+		if (any(is.nan(diag(V))) || any(is.infinite(diag(V)))) return(1000000)		
 
+		if(mserr==TRUE){
+			diag(V)<-diag(V)+(data[,3]^2)
+		}
+
+		theta<-pseudoinverse(t(W)%*%pseudoinverse(V)%*%W,tol=.Machine$double.eps)%*%t(W)%*%pseudoinverse(V,.Machine$double.eps)%*%x
+
+		DET<-determinant(V, logarithm=TRUE)
+		
 		logl<--.5*(t(W%*%theta-x)%*%pseudoinverse(V)%*%(W%*%theta-x))-.5*as.numeric(DET$modulus)-.5*(N*log(2*pi))
 		
 		return(-logl)
 	}
-	
+
 	if(quiet==FALSE){
 		cat("Begin subplex optimization routine -- Starting value:",ip, "\n")
 	}
-	
+
 	lower = rep(lb, np)
 	upper = rep(ub, np)
 	
@@ -251,8 +265,13 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 		Rate.mat[] <- c(p, 1e-10)[index.mat]
 		
 		N<-length(x[,1])
-		V<-varcov.ou(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree)
-		W<-weight.mat(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, assume.station=bool)
+		V<-varcov.ou(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, scaleHeight=scaleHeight)
+		W<-weight.mat(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, scaleHeight=scaleHeight, assume.station=bool)
+	
+		if(mserr==TRUE){
+			diag(V)<-diag(V)+(data[,3]^2)
+		}
+		
 		theta<-pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)%*%t(W)%*%pseudoinverse(V)%*%x
 		#Calculates the hat matrix:
 		#H.mat<-W%*%pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)%*%t(W)%*%pseudoinverse(V)
@@ -271,23 +290,36 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 	}
 	theta <- dev.theta(out$solution)
 	#Calculates the Hessian for use in calculating standard errors and whether the maximum likelihood solution was found
-	h <- hessian(x=out$solution, func=dev)
-	#Using the corpcor package here to overcome possible NAs with calculating the SE
-	solution<-matrix(out$solution[index.mat], dim(index.mat))
-	solution.se<-matrix(sqrt(diag(pseudoinverse(h)))[index.mat], dim(index.mat))
-	rownames(solution) <- rownames(solution.se) <- rownames(index.mat) <- c("alpha","sigma.sq")
-	if(simmap.tree==FALSE){
-		colnames(solution) <- colnames(solution.se) <- levels(tot.states)
+	if(diagn==TRUE){
+		h <- hessian(x=out$solution, func=dev)
+		#Using the corpcor package here to overcome possible NAs with calculating the SE
+		solution<-matrix(out$solution[index.mat], dim(index.mat))
+		solution.se<-matrix(sqrt(diag(pseudoinverse(h)))[index.mat], dim(index.mat))
+		rownames(solution) <- rownames(solution.se) <- rownames(index.mat) <- c("alpha","sigma.sq")
+		if(simmap.tree==FALSE){
+			colnames(solution) <- colnames(solution.se) <- levels(tot.states)
+		}
+		if(simmap.tree==TRUE){
+			colnames(solution) <- colnames(solution.se) <- colnames(phy$mapped.edge)
+		}				
+		#Eigendecomposition of the Hessian to assess reliability of likelihood estimates
+		hess.eig<-eigen(h,symmetric=TRUE)
+		#If eigenvect is TRUE then the eigenvector and index matrix will appear in the list of objects 
+		eigval<-signif(hess.eig$values,2)
+		eigvect<-round(hess.eig$vectors, 2)
+		obj = list(loglik = loglik, AIC = -2*loglik+2*param.count,AICc=-2*loglik+(2*param.count*(ntips/(ntips-param.count-1))),model=model,solution=solution, theta=theta$theta.est, solution.se=solution.se, tot.states=tot.states, index.mat=index.mat, simmap.tree=simmap.tree, opts=opts, data=data, phy=phy, root.station=root.station, lb=lower, ub=upper, iterations=out$iterations, res=theta$res, eigval=eigval, eigvect=eigvect) 
+
 	}
-	if(simmap.tree==TRUE){
-		colnames(solution) <- colnames(solution.se) <- colnames(phy$mapped.edge)
-	}				
-	#Eigendecomposition of the Hessian to assess reliability of likelihood estimates
-	hess.eig<-eigen(h,symmetric=TRUE)
-	#If eigenvect is TRUE then the eigenvector and index matrix will appear in the list of objects 
-	eigval<-signif(hess.eig$values,2)
-	eigvect<-round(hess.eig$vectors, 2)
-	obj = list(loglik = loglik, AIC = -2*loglik+2*param.count,AICc=-2*loglik+(2*param.count*(ntips/(ntips-param.count-1))),model=model,solution=solution, theta=theta$theta.est, solution.se=solution.se, tot.states=tot.states, index.mat=index.mat, simmap.tree=simmap.tree, opts=opts, data=data, phy=phy, root.station=root.station, lb=lower, ub=upper, iterations=out$iterations, res=theta$res, eigval=eigval, eigvect=eigvect) 
+	if(diagn==FALSE){
+		solution<-matrix(out$solution[index.mat], dim(index.mat))
+		if(simmap.tree==FALSE){
+			colnames(solution) <- levels(tot.states)
+		}
+		if(simmap.tree==TRUE){
+			colnames(solution) <- colnames(phy$mapped.edge)
+		}	
+		obj = list(loglik = loglik, AIC = -2*loglik+2*param.count,AICc=-2*loglik+(2*param.count*(ntips/(ntips-param.count-1))),model=model,solution=solution, theta=theta$theta.est, tot.states=tot.states, index.mat=index.mat, simmap.tree=simmap.tree, opts=opts, data=data, phy=phy, root.station=root.station, lb=lower, ub=upper, iterations=out$iterations, res=theta$res) 
+	}
 	class(obj)<-"OUwie"		
 	return(obj)
 }

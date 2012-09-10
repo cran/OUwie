@@ -4,11 +4,22 @@
 
 #Allows the user to calculate the likelihood given a specified set of parameter values. 
 
-OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"),simmap.tree=FALSE,root.station=TRUE, alpha=NULL, sigma.sq=NULL, theta=NULL, clade=NULL){
+OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"),simmap.tree=FALSE,scaleHeight=FALSE,root.station=TRUE, alpha=NULL, sigma.sq=NULL, theta=NULL, clade=NULL, mserr=FALSE){
 
 	#Makes sure the data is in the same order as the tip labels
-	data<-data.frame(data[,2], data[,3], row.names=data[,1])
-	data<-data[phy$tip.label,]
+	if(mserr==FALSE){
+		data<-data.frame(data[,2], data[,3], row.names=data[,1])
+		data<-data[phy$tip.label,]
+	}
+	if(mserr==TRUE){
+		if(!dim(data)[2]==4){
+			cat("You specified measurement error should be incorporated, but this information is missing:\n")
+		}
+		else{
+			data<-data.frame(data[,2], data[,3], data[,4], row.names=data[,1])
+			data<-data[phy$tip.label,]
+		}
+	}
 	
 	#Values to be used throughout
 	n=max(phy$edge[,1])
@@ -35,7 +46,7 @@ OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","O
 	}
 	if(simmap.tree==TRUE){
 		k<-length(colnames(phy$mapped.edge))
-		int.states<-factor(colnames(phy$mapped.edge))
+		tot.states<-factor(colnames(phy$mapped.edge))
 		tip.states<-factor(data[,1])
 		data[,1]<-as.numeric(tip.states)
 		
@@ -44,15 +55,13 @@ OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","O
 		#Obtains the state at the root
 		root.state=which(colnames(phy$mapped.edge)==names(phy$maps[[1]][1]))
 		##Begins the construction of the edges matrix -- similar to the ouch format##
-		#Makes a vector of absolute times in proportion of the total length of the tree
-		branch.lengths=rep(0,(n-1))
-		branch.lengths[(ntips+1):(n-1)]=branching.times(phy)[-1]/max(branching.times(phy))
+		edges=cbind(c(1:(n-1)),phy$edge,nodeHeights(phy))
+
+		if(scaleHeight==TRUE){
+			edges[,4:5]<-edges[,4:5]/max(nodeHeights(phy))
+		}
 		
-		#New tree matrix to be used for subsetting regimes
-		edges=cbind(c(1:(n-1)),phy$edge,phy$edge.length)
 		edges=edges[sort.list(edges[,3]),]
-		
-		edges[,4]=branch.lengths
 		
 		#Resort the edge matrix so that it looks like the original matrix order
 		edges=edges[sort.list(edges[,1]),]
@@ -79,37 +88,38 @@ OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","O
 				phy$node.label<-sample(c(1:k),phy$Nnode, replace=T)
 				int.states=length(levels(tip.states))
 				#Since we only really have one global regime, make up the internal nodes -- this could be improved
-				phy$node.label<-as.numeric(int.states)
-				branch.lengths=rep(0,(n-1))
-				branch.lengths[(ntips+1):(n-1)]=branching.times(phy)[-1]/max(branching.times(phy))
-				
+				phy$node.label<-as.numeric(int.states)				
 				#Obtain root state -- for both models assume the root state to be 1 since no other state is used even if provided in the tree
 				root.state<-1
 				#New tree matrix to be used for subsetting regimes
-				edges=cbind(c(1:(n-1)),phy$edge,phy$edge.length)
-				edges=edges[sort.list(edges[,3]),]
+				edges=cbind(c(1:(n-1)),phy$edge,nodeHeights(phy))
+			
+				if(scaleHeight==TRUE){
+					edges[,4:5]<-edges[,4:5]/max(nodeHeights(phy))
+				}
 				
-				edges[,4]=branch.lengths
+				edges=edges[sort.list(edges[,3]),]
+
 				regime <- matrix(0,nrow=length(edges[,1]),ncol=k)
 				regime[,1]<-1
-				regime[,2:k]<-0
+				if (k>1) {
+					regime[,2:k]<-0
+				}
 				
 				edges=cbind(edges,regime)
 			}
-			else{
-				##Begins the construction of the edges matrix -- similar to the ouch format##
-				#Makes a vector of absolute times in proportion of the total length of the tree
-				branch.lengths=rep(0,(n-1))
-				branch.lengths[(ntips+1):(n-1)]=branching.times(phy)[-1]/max(branching.times(phy))
-				
+			else{				
 				#Obtain root state and internal node labels
 				root.state<-phy$node.label[1]
 				int.state<-phy$node.label[-1]
 				#New tree matrix to be used for subsetting regimes
-				edges=cbind(c(1:(n-1)),phy$edge,phy$edge.length)
-				edges=edges[sort.list(edges[,3]),]
+				edges=cbind(c(1:(n-1)),phy$edge,nodeHeights(phy))
+			
+				if(scaleHeight==TRUE){
+					edges[,4:5]<-edges[,4:5]/max(nodeHeights(phy))
+				}
 				
-				edges[,4]=branch.lengths
+				edges=edges[sort.list(edges[,3]),]
 				
 				mm<-c(data[,1],int.state)
 				regime <- matrix(0,nrow=length(mm),ncol=length(unique(mm)))
@@ -133,7 +143,7 @@ OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","O
 		if (model == "BM1"){
 			np=1
 			index<-matrix(TRUE,2,k)
-			Rate.mat[1,1:k]<-0.0000001
+			Rate.mat[1,1:k]<-1e-10
 			Rate.mat[2,1:k]<-sigma.sq
 			param.count<-np+1
 			bool=TRUE
@@ -141,7 +151,7 @@ OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","O
 		if (model == "BMS"){
 			np=k
 			index<-matrix(TRUE,2,k)
-			Rate.mat[1,1:k]<-0.0000001
+			Rate.mat[1,1:k]<-1e-10
 			Rate.mat[2,1:k]<-sigma.sq
 			param.count<-np+1
 			bool=FALSE
@@ -218,9 +228,13 @@ OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","O
 	dev<-function(){
 		
 		N<-length(x[,1])
-		V<-varcov.ou(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree)
-		W<-weight.mat(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, assume.station=bool)
-		
+		V<-varcov.ou(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, scaleHeight=scaleHeight)
+		W<-weight.mat(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, scaleHeight=scaleHeight,assume.station=bool)
+
+		if(mserr==TRUE){
+			diag(V)<-diag(V)+(data[,3]^2)
+		}
+
 		if(is.null(theta)){
 			theta<-pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)%*%t(W)%*%pseudoinverse(V)%*%x
 			se<-sqrt(diag(pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)))
@@ -232,7 +246,6 @@ OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","O
 
 		theta.est<-cbind(theta,se)
 		res<-W%*%theta-x
-		theta<-pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)%*%t(W)%*%pseudoinverse(V)%*%x
 		
 		DET<-determinant(V, logarithm=TRUE)
 		
@@ -240,7 +253,7 @@ OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","O
 				
 		list(-logl,theta.est,res)
 	}
-	#Informs the user that the optimization routine has started and starting value is being used (default=1)
+
 	cat("Calculating likelihood using fixed parameter values:",c(alpha,sigma.sq,theta), "\n")
 	
 	fixed.fit <- dev()

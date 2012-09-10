@@ -3,19 +3,20 @@
 \title{Generalized Hansen model likelihood calculator}
 \description{Allows the user to calculate the likelihood given a specified set of parameter values}
 \usage{
-OUwie.fixed(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"),simmap.tree=FALSE,
-root.station=TRUE, alpha=NULL, sigma.sq=NULL, theta=NULL, clade=NULL)
+OUwie.fixed(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"), simmap.tree=FALSE, scaleHeight=FALSE, root.station=TRUE, alpha=NULL, sigma.sq=NULL, theta=NULL, clade=NULL, mserr=FALSE)
 }       
 \arguments{
 \item{phy}{a phylogenetic tree, in \code{ape} \dQuote{phylo} format and with internal nodes labeled denoting the ancestral selective regimes}
 \item{data}{a dataframe containing species information (see Details)}
 \item{model}{models to fit to comparative data (see Details).}
 \item{simmap.tree}{a logical indicating whether the input tree is in SIMMAP format. The default is \code{FALSE}.} 
+\item{scaleHeight}{a logical indicating whether the total tree height should be scaled to 1 (see Details). The default is \code{FALSE}.} 
 \item{root.station}{a logical indicating whether the starting state, \eqn{\theta_0}{theta_0}, should be estimated.}
 \item{alpha}{a numeric vector giving the values of \eqn{\alpha}{alpha} for each selective regime}
 \item{sigma.sq}{a numeric vector giving the values of \eqn{\sigma^2}{sigma^2} for each selective regime} 
 \item{theta}{a numeric vector giving the values of \eqn{\theta}{theta} for each selective regime}
 \item{clade}{a list containing a pair of taxa whose MRCA is the clade of interest.}
+\item{mserr}{a logical indicating whether a fourth column in the data matrix contains measurement error for each species mean. The default is \code{FALSE}.}
 }
 \details{
 The input is a tree and a data file. The tree must be of class \dQuote{phylo} and must contain the ancestral selective regimes as internal node labels. The data file is a dataframe that must have column entries in the following order: [,1] species names and [,2] their current selective regime. The user specifies the  parameter values (i.e. \eqn{\alpha}{alpha}, \eqn{\sigma^2}{sigma^2}, and \eqn{\theta}{theta}).}
@@ -46,6 +47,6 @@ alpha=c(1.0,0.5)
 sigma.sq=c(0.45,0.9)
 theta=c(1.0,2.0)
 
-OUwie.fixed(tree,trait,model=c("OUMVA"), simmap.tree=FALSE, clade=NULL, alpha,sigma.sq,theta)
+OUwie.fixed(tree,trait,model=c("OUMVA"), simmap.tree=FALSE, scaleHeight=TRUE,clade=NULL, alpha,sigma.sq,theta)
 }
 \author{Jeremy M. Beaulieu}
