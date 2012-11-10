@@ -6,7 +6,6 @@ varcov.ou<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE, scaleHe
 	
 	if(is.null(root.state)) {
 		root.state<-which(edges[dim(edges)[1],]==1)-5
-		print(root.state)
 		edges<-edges[-1*dim(edges)[1],]
 	}
 	n=max(phy$edge[,1])

@@ -16,7 +16,7 @@ OUwie(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"), simmap.
 \item{lb}{lower bound for the likelihood search. The default is \code{lb=0.000001}. Note that this value must be greater than zero.}
 \item{ub}{upper bound for the likelihood search. The default is \code{ub=1000}.}
 \item{clade}{a list containing a pair of taxa whose MRCA is the clade of interest (see Details).}
-\item{mserr}{a logical indicating whether a fourth column in the data matrix contains measurement error for each species mean. The default is \code{FALSE}.}
+\item{mserr}{a logical indicating whether a fourth column in the data matrix contains measurement error for each species mean. The measurement error is assumed to be the standard error of the species mean. The default is \code{FALSE}.}
 \item{diagn}{a logical indicating whether the full diagnostic analysis should be carried out. The default is \code{TRUE}.}
 \item{quiet}{a logical indicating whether progress should be written to the screen. The default is \code{FALSE}.}
 }
@@ -66,19 +66,20 @@ select.reg[tree$node.label == 2] <- "red"
 plot(tree) 
 nodelabels(pch=21, bg=select.reg)
 
+#Not run
 #To see the first 5 lines of the data matrix to see what how to
 #structure the data:
-trait[1:5,]
+#trait[1:5,]
 
 #Now fit an OU model that allows different sigma^2: 
-OUwie(tree,trait,model=c("OUMV"),root.station=TRUE)
+#OUwie(tree,trait,model=c("OUMV"),root.station=TRUE)
 
 #Fit an OU model based on a clade of interest:
-OUwie(tree,trait,model=c("OUMV"), root.station=TRUE, clade=c("t50", "t64"))
+#OUwie(tree,trait,model=c("OUMV"), root.station=TRUE, clade=c("t50", "t64"))
 
 }
 \references{
-Beaulieu J.M., Jhwueng D.C., Boettiger C., and O'Meara B.C. 2012. Modeling stabilizing selection: Expanding the Ornstein-Uhlenbeck model of adaptive evolution. Evolution. In press.
+Beaulieu J.M., Jhwueng D.C., Boettiger C., and O'Meara B.C. 2012. Modeling stabilizing selection: Expanding the Ornstein-Uhlenbeck model of adaptive evolution. Evolution 66:2369-2383.
 
 O'Meara B.C., Ane C., Sanderson P.C., Wainwright P.C. 2006. Testing for different rates of continuous trait evolution using likelihood. Evolution 60:922-933.
 
