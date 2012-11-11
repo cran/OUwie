@@ -6,6 +6,7 @@
 
 OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"),simmap.tree=FALSE,scaleHeight=FALSE,root.station=TRUE, alpha=NULL, sigma.sq=NULL, theta=NULL, clade=NULL, mserr=FALSE){
 
+	phy<<-phy
 	#Makes sure the data is in the same order as the tip labels
 	if(mserr==FALSE){
 		data<-data.frame(data[,2], data[,3], row.names=data[,1])
@@ -347,7 +348,7 @@ print.OUwie.fixed<-function(x, ...){
 				}
 				if(x$simmap.tree==TRUE){
 					colnames(param.est) <- c(colnames(x$phy$mapped.edge))
-					colnames(theta.mat)<-c("Root", colnames(phy$mapped.edge))
+					colnames(theta.mat)<-c("Root", colnames(x$phy$mapped.edge))
 				}
 				cat("\nRates\n")
 				print(param.est)

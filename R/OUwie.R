@@ -11,6 +11,7 @@
 
 OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"), simmap.tree=FALSE, scaleHeight=FALSE, root.station=TRUE, ip=1, lb=0.000001, ub=1000, clade=NULL, mserr=FALSE, diagn=TRUE, quiet=FALSE){
 	
+	phy<<-phy
 	#Makes sure the data is in the same order as the tip labels
 	if(mserr==FALSE){
 		data<-data.frame(data[,2], data[,3], row.names=data[,1])
@@ -74,7 +75,6 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 		#Obtain a a list of all the regime states. This is a solution for instances when tip states and 
 		#the internal nodes are not of equal length:
 		tot.states<-factor(c(phy$node.label,as.character(data[,1])))
-		
 		k<-length(levels(tot.states))
 
 		int.states<-factor(phy$node.label)
@@ -149,6 +149,7 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 			param.count<-np+1
 			bool=TRUE
 		}
+		#The group mean model of Thomas et al, is trivial: set bool to be TRUE:
 		if (model == "BMS"){
 			np=k
 			index<-matrix(TRUE,2,k)
@@ -163,10 +164,10 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 			index.mat[1,1:k]<-1
 			index.mat[2,1:k]<-2
 			if(root.station==TRUE){
-			param.count<-np+1
+				param.count<-np+k
 			}
 			if(root.station==FALSE){
-				param.count<-np+2
+				param.count<-np+k+1
 			}
 			bool=root.station
 		}
@@ -176,10 +177,10 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 			index.mat[1,1:k]<-1
 			index.mat[2,1:k]<-2
 			if(root.station==TRUE){
-				param.count<-np+1
+				param.count<-np+k
 			}
 			if(root.station==FALSE){
-				param.count<-np+2
+				param.count<-np+k+1
 			}
 			bool=root.station
 		}
@@ -189,10 +190,10 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 			index.mat[1,1:k]<-1
 			index.mat[2,1:k]<-2:(k+1)
 			if(root.station==TRUE){
-				param.count<-np+1
+				param.count<-np+k
 			}
 			if(root.station==FALSE){
-				param.count<-np+2
+				param.count<-np+k+1
 			}
 			bool=root.station
 		}
@@ -202,10 +203,10 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 			index.mat[1,1:k]<-1:k
 			index.mat[2,1:k]<-k+1
 			if(root.station==TRUE){
-				param.count<-np+1
+				param.count<-np+k
 			}
 			if(root.station==FALSE){
-				param.count<-np+2
+				param.count<-np+k+1
 			}
 			bool=root.station
 		}
@@ -214,10 +215,10 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 			index<-matrix(TRUE,2,k)
 			index.mat[index]<-1:(k*2)
 			if(root.station==TRUE){
-				param.count<-np+1
+				param.count<-np+k
 			}
 			if(root.station==FALSE){
-				param.count<-np+2
+				param.count<-np+k+1
 			}
 			bool=root.station
 		}
@@ -234,7 +235,7 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 		if (any(is.nan(diag(V))) || any(is.infinite(diag(V)))) return(1000000)		
 
 		if(mserr==TRUE){
-			diag(V)<-diag(V)+(data[,3]^2)
+			diag(V)<-diag(V)+data[,3]
 		}
 
 		theta<-pseudoinverse(t(W)%*%pseudoinverse(V)%*%W,tol=.Machine$double.eps)%*%t(W)%*%pseudoinverse(V,.Machine$double.eps)%*%x
@@ -269,7 +270,7 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 		W<-weight.mat(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, scaleHeight=scaleHeight, assume.station=bool)
 	
 		if(mserr==TRUE){
-			diag(V)<-diag(V)+(data[,3]^2)
+			diag(V)<-diag(V)+data[,3]
 		}
 		
 		theta<-pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)%*%t(W)%*%pseudoinverse(V)%*%x
@@ -399,7 +400,7 @@ print.OUwie<-function(x, ...){
 					colnames(theta.mat)<-c("Root", levels(x$tot.states))
 				}
 				if(x$simmap.tree==TRUE){
-					colnames(theta.mat)<-c("Root", colnames(phy$mapped.edge))
+					colnames(theta.mat)<-c("Root", colnames(x$phy$mapped.edge))
 				}
 				cat("\nRates\n")
 				print(param.est)
