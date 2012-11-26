@@ -164,10 +164,10 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 			index.mat[1,1:k]<-1
 			index.mat[2,1:k]<-2
 			if(root.station==TRUE){
-				param.count<-np+k
+				param.count<-np+1
 			}
 			if(root.station==FALSE){
-				param.count<-np+k+1
+				param.count<-np+2
 			}
 			bool=root.station
 		}

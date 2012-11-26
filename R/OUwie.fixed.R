@@ -176,10 +176,10 @@ OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","O
 			Rate.mat[1,1:k]<-alpha
 			Rate.mat[2,1:k]<-sigma.sq
 			if(root.station==TRUE){
-				param.count<-np+1
+				param.count<-np+k
 			}
 			if(root.station==FALSE){
-				param.count<-np+2
+				param.count<-np+k+1
 			}			
 			bool=root.station
 		}
@@ -189,10 +189,10 @@ OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","O
 			Rate.mat[1,1:k]<-alpha
 			Rate.mat[2,1:k]<-sigma.sq
 			if(root.station==TRUE){
-				param.count<-np+1
+				param.count<-np+k
 			}
 			if(root.station==FALSE){
-				param.count<-np+2
+				param.count<-np+k+1
 			}
 			bool=root.station
 		}
@@ -202,10 +202,10 @@ OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","O
 			Rate.mat[1,1:k]<-alpha
 			Rate.mat[2,1:k]<-sigma.sq
 			if(root.station==TRUE){
-				param.count<-np+1
+				param.count<-np+k
 			}
 			if(root.station==FALSE){
-				param.count<-np+2
+				param.count<-np+k+1
 			}
 			bool=root.station
 		}
@@ -215,10 +215,10 @@ OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","O
 			Rate.mat[1,1:k]<-alpha
 			Rate.mat[2,1:k]<-sigma.sq
 			if(root.station==TRUE){
-				param.count<-np+1
+				param.count<-np+k
 			}
 			if(root.station==FALSE){
-				param.count<-np+2
+				param.count<-np+k+1
 			}
 			bool=root.station
 		}
