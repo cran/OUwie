@@ -3,7 +3,10 @@
 \title{Contour plot of likelihood surface}
 \description{Plots likelihood surface for pairs of free parameters for generalized Ornstein-Uhlenbeck-based Hansen models of continuous characters evolving under discrete selective regimes.}
 \usage{
-OUwie.contour(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"), simmap.tree=FALSE, scaleHeight=FALSE,root.station=TRUE, lb=0.000001, ub=1000, focal.param=NULL, clade=NULL, mserr=FALSE, nrep=1000, sd.mult=3, levels=c(0.5,1,1.5,2), likelihood.boundary=Inf, lwd=2, \dots)
+OUwie.contour(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"), 
+simmap.tree=FALSE, scaleHeight=FALSE,root.station=TRUE, lb=0.000001, ub=1000, 
+focal.param=NULL, clade=NULL, mserr="none", nrep=1000, sd.mult=3, 
+levels=c(0.5,1,1.5,2), likelihood.boundary=Inf, lwd=2, \dots)
 }       
 \arguments{
 \item{phy}{a phylogenetic tree, in \code{ape} \dQuote{phylo} format and with internal nodes labeled denoting the ancestral selective regimes.}
@@ -16,7 +19,7 @@ OUwie.contour(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"),
 \item{ub}{upper bound for the likelihood search. The default is \code{ub=1000}.}
 \item{focal.param}{a character vector with the pair of parameters (sigma.sq and/or alpha) to plot (see Details).}
 \item{clade}{a list containing a pair of taxa whose MRCA is the clade of interest (see Details).}
-\item{mserr}{a logical indicating whether a fourth column in the data matrix contains measurement error for each species mean. The default is \code{FALSE}.}
+\item{mserr}{designates whether a fourth column in the data matrix contains measurement error for each species value ("known"). The measurement error is assumed to be the standard error of the species mean. The default is "none".}
 \item{nrep}{the number of points to use for the likelihood surface.}
 \item{sd.mult}{the sd for the normal distribution to pull random points from is sd.mult * se for each parameter.}
 \item{levels}{the levels at which to draw contour lines, measured as lnL units away from the best values.}
@@ -27,7 +30,9 @@ OUwie.contour(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"),
 \details{
 This function creates a plot of the likelihood surface for a pair of parameters, letting the other parameters find their own optima. It can be very slow, as it involves optimization \code{nrep} times (though with two fewer parameters than with the chosen model, as the focal parameter values are fixed). It uses half its points to sample near the MLE and half to uniformly sample across a range. However, it is important to do as on some trees and with some models, certain parameters may correlate with each other.
 
-The pair of parameters to examine is passed by focal.param. For example, to do a plot of sigma.sq from the first regime and alpha from the second regime, one would pass \code{focal.param = c( "sigma.sq_1", "alpha_2")}.
+The pair of parameters to examine is passed by focal.param. For example, to do a plot of sigma.sq from the first regime and alpha from the second regime, one would pass 
+
+\code{focal.param = c( "sigma.sq_1", "alpha_2")}.
 
 This returns a data.frame with the first two columns being the values of the points examined and the third column the loglik of those points. The last row contains the MLE.
 

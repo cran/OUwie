@@ -2,7 +2,7 @@
 
 #written by Brian C. OMeara
 
-OUwie.contour<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"), simmap.tree=FALSE, scaleHeight=FALSE, root.station=TRUE, lb=0.000001, ub=1000, focal.param=NULL, clade=NULL, mserr=FALSE, nrep=1000, sd.mult=3, levels=c(0.5,1,1.5,2),likelihood.boundary=Inf,lwd=2, ...){
+OUwie.contour<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"), simmap.tree=FALSE, scaleHeight=FALSE, root.station=TRUE, lb=0.000001, ub=1000, focal.param=NULL, clade=NULL, mserr="none", nrep=1000, sd.mult=3, levels=c(0.5,1,1.5,2),likelihood.boundary=Inf,lwd=2, ...){
 #focal.param is something like c("alpha_2","sigma.sq_1"). They are then split on "_"
 	if(length(focal.param)!=2) {
 		stop("need a focal.param vector of length two")

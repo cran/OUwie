@@ -4,15 +4,15 @@
 
 #Allows the user to calculate the likelihood given a specified set of parameter values. 
 
-OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"),simmap.tree=FALSE,scaleHeight=FALSE,root.station=TRUE, alpha=NULL, sigma.sq=NULL, theta=NULL, clade=NULL, mserr=FALSE){
+OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"),simmap.tree=FALSE,scaleHeight=FALSE,root.station=TRUE, alpha=NULL, sigma.sq=NULL, theta=NULL, clade=NULL, mserr="none"){
 
 	phy<<-phy
 	#Makes sure the data is in the same order as the tip labels
-	if(mserr==FALSE){
+	if(mserr=="none" | mserr=="est"){
 		data<-data.frame(data[,2], data[,3], row.names=data[,1])
 		data<-data[phy$tip.label,]
 	}
-	if(mserr==TRUE){
+	if(mserr=="known"){
 		if(!dim(data)[2]==4){
 			cat("You specified measurement error should be incorporated, but this information is missing:\n")
 		}
@@ -21,7 +21,6 @@ OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","O
 			data<-data[phy$tip.label,]
 		}
 	}
-	
 	#Values to be used throughout
 	n=max(phy$edge[,1])
 	ntips=length(phy$tip.label)
@@ -154,7 +153,12 @@ OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","O
 			index<-matrix(TRUE,2,k)
 			Rate.mat[1,1:k]<-1e-10
 			Rate.mat[2,1:k]<-sigma.sq
+#			if(root.station==TRUE){
+#				param.count<-np+k
+#			}
+#			if(root.station==FALSE){
 			param.count<-np+1
+#			}			
 			bool=FALSE
 		}
 		if (model == "OU1"){
@@ -232,10 +236,13 @@ OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","O
 		V<-varcov.ou(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, scaleHeight=scaleHeight)
 		W<-weight.mat(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, scaleHeight=scaleHeight,assume.station=bool)
 
-		if(mserr==TRUE){
-			diag(V)<-diag(V)+(data[,3]^2)
+		if(mserr=="known"){
+			diag(V)<-diag(V)+data[,3]
 		}
-
+#		if(mserr=="est"){
+#			diag(V)<-diag(V)+p[length(p)]
+#		}
+		
 		if(is.null(theta)){
 			theta<-pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)%*%t(W)%*%pseudoinverse(V)%*%x
 			se<-sqrt(diag(pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)))
@@ -269,8 +276,7 @@ OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","O
 print.OUwie.fixed<-function(x, ...){
 	
 	ntips=Ntip(x$phy)
-	output<-data.frame(x$loglik,x$AIC,x$AICc,x$model,ntips)
-	row.names(output)<-NULL
+	output<-data.frame(x$loglik,x$AIC,x$AICc,x$model,ntips,row.names="")
 	names(output)<-c("-lnL","AIC","AICc","model","ntax")
 	cat("\nFit\n")
 	print(output)
@@ -280,7 +286,12 @@ print.OUwie.fixed<-function(x, ...){
 		if (x$model == "BM1" | x$model == "BMS"){
 			param.est <- x$solution
 			rownames(param.est)<-c("alpha","sigma.sq")
+#			if(x$root.station==FALSE){
 			theta.mat <- matrix(t(x$theta[1,]), 2, length(levels(x$tot.states)))
+#			}
+#			else{
+#				theta.mat<-matrix(t(x$theta), 2, length(levels(x$tot.states)))
+#			}
 			colnames(theta.mat)<-c("estimate", "se")
 			if(x$simmap.tree==FALSE){
 				colnames(param.est) <- colnames(theta.mat) <- levels(x$tot.states)
