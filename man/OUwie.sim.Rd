@@ -3,7 +3,8 @@
 \title{Generalized Hansen model simulator}
 \description{Simulates the Ornstein-Uhlenbeck process of continuous characters evolving under discrete selective regimes.}
 \usage{
-OUwie.sim(phy, data=NULL, simmap.tree=FALSE, scaleHeight=FALSE, alpha, sigma.sq, theta0, theta)
+OUwie.sim(phy, data=NULL, simmap.tree=FALSE, scaleHeight=FALSE, alpha, 
+sigma.sq, theta0, theta)
 }       
 \arguments{
 \item{phy}{a phylogenetic tree, in \code{ape} \dQuote{phylo} format and with internal nodes labeled denoting the ancestral selective regimes}
