@@ -22,7 +22,6 @@ weight.mat<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE, scaleH
 	oldregime=root.state
 	nodevar=rep(0,max(edges[,3]))
 	alpha=Rate.mat[1,]
-	
 	if(assume.station==TRUE){
 		
 		W<-matrix(0,ntips,k)

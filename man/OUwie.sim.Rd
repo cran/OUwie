@@ -47,6 +47,7 @@ sigma.sq=c(0.45,0.9)
 theta0=0
 theta=c(1.0,2.0)
 
-sim.data<-OUwie.sim(tree,trait,simmap.tree=FALSE,scaleHeight=TRUE, alpha,sigma.sq,theta0,theta)
+sim.data<-OUwie.sim(tree,trait,simmap.tree=FALSE,scaleHeight=FALSE,
+alpha=alpha,sigma.sq=sigma.sq,theta0=theta0,theta=theta)
 }
 \author{Jeremy M. Beaulieu and Brian C. O'Meara}
