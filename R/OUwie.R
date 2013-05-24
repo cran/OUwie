@@ -86,7 +86,7 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 			if (model == "BM1"| model == "OU1"){
 				##Begins the construction of the edges matrix -- similar to the ouch format##
 				#Makes a vector of absolute times in proportion of the total length of the tree
-				phy$node.label<-sample(c(1:k),phy$Nnode, replace=T)
+				phy$node.label<-sample(c(1:k), phy$Nnode, replace=T)
 				int.states=length(levels(tip.states))
 				#Since we only really have one global regime, make up the internal nodes -- this could be improved
 				phy$node.label<-as.numeric(int.states)				
@@ -94,11 +94,9 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 				root.state<-1
 				#New tree matrix to be used for subsetting regimes
 				edges=cbind(c(1:(n-1)),phy$edge,nodeHeights(phy))
-				
 				if(scaleHeight==TRUE){
 					edges[,4:5]<-edges[,4:5]/max(nodeHeights(phy))
 				}
-				
 				edges=edges[sort.list(edges[,3]),]
 				
 				regime <- matrix(0,nrow=length(edges[,1]),ncol=k)
@@ -114,11 +112,9 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 				int.state<-phy$node.label[-1]
 				#New tree matrix to be used for subsetting regimes
 				edges=cbind(c(1:(n-1)),phy$edge,nodeHeights(phy))
-				
 				if(scaleHeight==TRUE){
 					edges[,4:5]<-edges[,4:5]/max(nodeHeights(phy))
 				}
-				
 				edges=edges[sort.list(edges[,3]),]
 				
 				mm<-c(data[,1],int.state)
@@ -244,7 +240,6 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 		N<-length(x[,1])
 		V<-varcov.ou(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, scaleHeight=scaleHeight)
 		W<-weight.mat(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, scaleHeight=scaleHeight, assume.station=bool)
-		
 		if (any(is.nan(diag(V))) || any(is.infinite(diag(V)))) return(1000000)		
 		
 		if(mserr=="known"){
@@ -253,13 +248,18 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 		if(mserr=="est"){
 			diag(V)<-diag(V)+p[length(p)]
 		}
-		
-		theta<-pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)%*%t(W)%*%pseudoinverse(V)%*%x
-		
+		theta<-Inf
+		try(theta<-pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)%*%t(W)%*%pseudoinverse(V)%*%x, silent=TRUE)
+		if(any(theta==Inf)){
+			return(10000000)
+		}
+				
 		DET<-determinant(V, logarithm=TRUE)
 		
 		logl<--.5*(t(W%*%theta-x)%*%pseudoinverse(V)%*%(W%*%theta-x))-.5*as.numeric(DET$modulus)-.5*(N*log(2*pi))
-		
+		if(is.infinite(logl)){
+			return(10000000)
+		}
 		return(-logl)
 	}
 	
@@ -281,6 +281,7 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 		init.index.mat[2,1:k]<-2
 		init <- nloptr(x0=rep(1, length.out = init.np), eval_f=dev, lb=init.lower, ub=init.upper, opts=opts, index.mat=init.index.mat, mserr="none")
 		init.ip <- c(init$solution[1],init$solution[2])
+
 		if(model=="OU1"){
 			ip=init.ip
 		}
@@ -302,7 +303,7 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 		sig<-as.numeric(t(x-a)%*%solve(C.mat)%*%(x-a)/n)
 		#####################
 		if(model=="BMS"){
-			ip=rep(sig,k)
+			ip=rep(1,k)
 		}
 		else{
 			ip=sig
@@ -333,7 +334,6 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 		if(mserr=="est"){
 			diag(V)<-diag(V)+p[length(p)]
 		}
-		
 		theta<-pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)%*%t(W)%*%pseudoinverse(V)%*%x
 		#Calculates the hat matrix:
 		#H.mat<-W%*%pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)%*%t(W)%*%pseudoinverse(V)

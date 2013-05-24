@@ -49,7 +49,7 @@ alpha=c(1.0,0.5)
 sigma.sq=c(0.45,0.9)
 theta=c(1.0,2.0)
 
-OUwie.fixed(tree,trait,model=c("OUMVA"), simmap.tree=FALSE, 
-scaleHeight=TRUE,clade=NULL, alpha,sigma.sq,theta)
+OUwie.fixed(tree,trait,model=c("OUMVA"), simmap.tree=FALSE, scaleHeight=TRUE,
+clade=NULL, alpha=alpha,sigma.sq=sigma.sq,theta=theta)
 }
 \author{Jeremy M. Beaulieu}

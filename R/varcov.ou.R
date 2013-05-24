@@ -27,7 +27,6 @@ varcov.ou<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE, scaleHe
 	n.cov2=matrix(rep(0,n), n, 1)
 	nodecode=matrix(c(ntips+1,root.state),1,2)
 	if(simmap.tree==TRUE){
-		
 		regimeindex<-colnames(phy$mapped.edge)
 		
 		for(i in 1:length(edges[,1])){
@@ -74,7 +73,6 @@ varcov.ou<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE, scaleHe
 			newregime=which(edges[i,6:(k+5)]==1)
 			oldtime=edges[i,4]
 			newtime=edges[i,5]
-			
 			if(anc%in%nodecode[,1]){
 				start=which(nodecode[,1]==anc)
 				oldregime=nodecode[start,2]
