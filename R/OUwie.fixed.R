@@ -4,7 +4,7 @@
 
 #Allows the user to calculate the likelihood given a specified set of parameter values. 
 
-OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"),simmap.tree=FALSE,scaleHeight=FALSE,root.station=TRUE, alpha=NULL, sigma.sq=NULL, theta=NULL, clade=NULL, mserr="none"){
+OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"),simmap.tree=FALSE,scaleHeight=FALSE,root.station=TRUE, alpha=NULL, sigma.sq=NULL, theta=NULL, clade=NULL, mserr="none", quiet=FALSE){
 
 	phy<<-phy
 	#Makes sure the data is in the same order as the tip labels
@@ -261,9 +261,9 @@ OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","O
 				
 		list(-logl,theta.est,res)
 	}
-
-	cat("Calculating likelihood using fixed parameter values:",c(alpha,sigma.sq,theta), "\n")
-	
+	if(quiet==FALSE){
+		cat("Calculating likelihood using fixed parameter values:",c(alpha,sigma.sq,theta), "\n")
+	}
 	fixed.fit <- dev()
 	loglik<- -fixed.fit[[1]]
 	

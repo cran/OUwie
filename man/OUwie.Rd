@@ -5,7 +5,7 @@
 \usage{
 OUwie(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"),
  simmap.tree=FALSE, scaleHeight=FALSE, root.station=TRUE, lb=0.000001, 
-ub=1000, clade=NULL, mserr="none", diagn=TRUE, quiet=FALSE)
+ub=1000, clade=NULL, mserr="none", diagn=FALSE, quiet=FALSE)
 }       
 \arguments{
 \item{phy}{a phylogenetic tree, in \code{ape} \dQuote{phylo} format and with internal nodes labeled denoting the ancestral selective regimes.}
@@ -18,11 +18,11 @@ ub=1000, clade=NULL, mserr="none", diagn=TRUE, quiet=FALSE)
 \item{ub}{upper bound for the likelihood search. The default is \code{ub=1000}.}
 \item{clade}{a list containing a pair of taxa whose MRCA is the clade of interest (see Details).}
 \item{mserr}{designates whether a fourth column in the data matrix contains measurement error for each species value ("known"). The measurement error is assumed to be the standard error of the species mean. The default is "none".}
-\item{diagn}{a logical indicating whether the full diagnostic analysis should be carried out. The default is \code{TRUE}.}
+\item{diagn}{a logical indicating whether the full diagnostic analysis should be carried out. The default is \code{FALSE}.}
 \item{quiet}{a logical indicating whether progress should be written to the screen. The default is \code{FALSE}.}
 }
 \details{
-This function fits various likelihood models for continuous characters evolving under discrete selective regimes. The function returns parameter estimates and their approximate standard errors. The R package \code{nloptr} provides a common interface to NLopt, an open-source library for nonlinear optimization. The likelihood function is maximized using the bounded subplex optimization routine (\code{NLOPT_LN_SBPLX}). As input all \code{OUwie} requires is a tree and a data matrix. The tree must be of class \dQuote{phylo} and must contain the ancestral selective regimes as internal node labels. Internal node labels can be applied manually or from some sort of ancestral state reconstruction procedure (BayesTraits, \code{ape}, \code{diversitree}, SIMMAP, etc.), which would then be brought into OUwie. This is essentially what is required by \code{ouch} and Brownie (though Brownie provides built-in ancestral state reconstruction capabilities). The data matrix must have column entries in the following order: [,1] species names, [,2] current selective regime, and [,3] the continuous trait of interest. Alternatively, if the user wants to incorporate measurement error (\code{mserr}="known"), then a fourth column, [,4] must be included that provides the standard error estimates for each species mean. Also, a user can specify a particular clade as being in a different selective regime, by inputting a pair of species whose mrca is the root of the clade of interest [e.g., \code{clade}=c("taxaA","taxaB")]. OUwie will automatically assign internal node labels and update the data matrix according to this clade designation. 
+This function fits various likelihood models for continuous characters evolving under discrete selective regimes. The function returns parameter estimates and their approximate standard errors. The R package \code{nloptr} provides a common interface to NLopt, an open-source library for nonlinear optimization. The likelihood function is maximized using the bounded subplex optimization routine (\code{NLOPT_LN_SBPLX}). As input all \code{OUwie} requires is a tree and a data matrix. The tree must be of class \dQuote{phylo} and must contain the ancestral selective regimes as internal node labels. Internal node labels can be applied manually or from some sort of ancestral state reconstruction procedure (BayesTraits, \code{ape}, \code{diversitree}, SIMMAP, etc.), which would then be brought into OUwie. This is essentially what is required by \code{ouch} and Brownie (though Brownie provides built-in ancestral state reconstruction capabilities). The data matrix must have column entries in the following order: [,1] species names, [,2] current selective regime, and [,3] the continuous trait of interest. Alternatively, if the user wants to incorporate measurement error (\code{mserr}="known"), then a fourth column, [,4] must be included that provides the standard error estimates for each species mean. However, a global measurement error for all taxa can be estimated from the data (\code{mserr}="est"); is not well tested, so use at your own risk. Also, a user can specify a particular clade as being in a different selective regime, by inputting a pair of species whose mrca is the root of the clade of interest [e.g., \code{clade}=c("taxaA","taxaB")]. OUwie will automatically assign internal node labels and update the data matrix according to this clade designation. 
 
 The initial implementation followed \code{ouch} in that the tree is automatically rescaled so that the branch lengths were in proportion to the total height of the tree. However, this makes the results inconsistent with other implementations such as Brownie or \code{geiger}. Therefore, we have allow the user to choose whether the tree should be rescaled or not. Note that the when \code{scaleHeight=FALSE} the bounds will have to be adjusted to the appropriate scale.
 
@@ -53,6 +53,7 @@ For models that allow \eqn{\alpha}{alpha} and \eqn{\sigma^2}{sigma^2} to vary (i
 \item{$lb}{The lower bound set}
 \item{$ub}{The upper bound set}
 \item{$iterations}{Number of iterations of the likelihood search that were executed}
+\item{$mserr.est}{The estimated measurement error if mserr="est". Otherwise, the value is NULL.}
 \item{$res}{A vector of residuals from the model fit.  The residuals are ordered in the same way as the tips in the tree.}
 \item{$eigval}{The eigenvalues from the decomposition of the Hessian of the likelihood function. If any \code{eigval<0} then one or more parameters were not optimized during the likelihood search (see Details)}
 \item{$eigvect}{The eigenvectors from the decomposition of the Hessian of the likelihood function is returned (see Details)}
