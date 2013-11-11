@@ -5,7 +5,7 @@
 \usage{
 OUwie.fixed(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"), 
 simmap.tree=FALSE, scaleHeight=FALSE, root.station=TRUE, alpha=NULL, 
-sigma.sq=NULL, theta=NULL, clade=NULL, mserr="none")
+sigma.sq=NULL, theta=NULL, clade=NULL, mserr="none", quiet=FALSE)
 }       
 \arguments{
 \item{phy}{a phylogenetic tree, in \code{ape} \dQuote{phylo} format and with internal nodes labeled denoting the ancestral selective regimes}
@@ -19,6 +19,7 @@ sigma.sq=NULL, theta=NULL, clade=NULL, mserr="none")
 \item{theta}{a numeric vector giving the values of \eqn{\theta}{theta} for each selective regime}
 \item{clade}{a list containing a pair of taxa whose MRCA is the clade of interest.}
 \item{mserr}{designates whether a fourth column in the data matrix contains measurement error for each species value ("known"). The measurement error is assumed to be the standard error of the species mean. The default is "none".}
+\item{quiet}{a logical indicating whether or not to print progress to the screen. The default is "FALSE".}
 }
 \details{
 The input is a tree and a data file. The tree must be of class \dQuote{phylo} and must contain the ancestral selective regimes as internal node labels. The data file is a dataframe that must have column entries in the following order: [,1] species names and [,2] their current selective regime. The user specifies the  parameter values (i.e. \eqn{\alpha}{alpha}, \eqn{\sigma^2}{sigma^2}, and \eqn{\theta}{theta}).}
@@ -45,11 +46,11 @@ data(tworegime)
 
 #Calculate the likelihood based on known values of
 #alpha, sigma^2, and theta:
-alpha=c(1.0,0.5)
-sigma.sq=c(0.45,0.9)
-theta=c(1.0,2.0)
+alpha=c(0.5632459,0.1726052)
+sigma.sq=c(0.1064417,0.3461386)
+theta=c(1.678196,0.4185894)
 
-OUwie.fixed(tree,trait,model=c("OUMVA"), simmap.tree=FALSE, scaleHeight=TRUE,
+OUwie.fixed(tree,trait,model=c("OUMVA"), simmap.tree=FALSE, scaleHeight=FALSE,
 clade=NULL, alpha=alpha,sigma.sq=sigma.sq,theta=theta)
 }
 \author{Jeremy M. Beaulieu}
