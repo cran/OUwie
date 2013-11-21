@@ -282,8 +282,13 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 		init.index.mat[2,1:k]<-2
 		if(model == "OU1" | model == "OUM"){
 			edges.tmp=edges
-			edges.tmp[,6]<-rep(1, length(edges.tmp[,1]))
-			edges.tmp[,7:(k+5)]<-0
+			if(dim(edges.tmp)[2] < 6){
+				edges.tmp <- cbind(edges.tmp, rep(1, length(edges.tmp[,1])))
+				edges.tmp <- cbind(edges.tmp,0)
+			}else{
+				edges.tmp[,6]<-rep(1, length(edges.tmp[,1]))
+				edges.tmp[,7:(k+5)]<-0
+			}
 		}else{
 			edges.tmp=edges
 		}
@@ -373,7 +378,7 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 			colnames(solution) <- colnames(solution.se) <- levels(tot.states)
 		}
 		if(simmap.tree==TRUE){
-			colnames(solution) <- colnames(solution.se) <- c(colnames(x$phy$mapped.edge))
+			colnames(solution) <- colnames(solution.se) <- c(colnames(phy$mapped.edge))
 		}				
 		#Eigendecomposition of the Hessian to assess reliability of likelihood estimates
 		hess.eig<-eigen(h,symmetric=TRUE)
@@ -397,7 +402,7 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 			colnames(solution) <- levels(tot.states)
 		}
 		if(simmap.tree==TRUE){
-			colnames(solution) <- c(colnames(x$phy$mapped.edge))
+			colnames(solution) <- c(colnames(phy$mapped.edge))
 		}
 		if(mserr=="est"){
 			mserr.est<-out$solution[length(out$solution)]
