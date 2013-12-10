@@ -3,7 +3,6 @@
 #written by Jeremy M. Beaulieu
 
 varcov.ou<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE, scaleHeight=FALSE){
-	
 	if(is.null(root.state)) {
 		root.state<-which(edges[dim(edges)[1],]==1)-5
 		edges<-edges[-1*dim(edges)[1],]
@@ -25,12 +24,9 @@ varcov.ou<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE, scaleHe
 	sigma=Rate.mat[2,]
 	n.cov1=matrix(rep(0,n), n, 1)
 	n.cov2=matrix(rep(0,n), n, 1)
-	nodecode=matrix(c(ntips+1,root.state),1,2)
 	if(simmap.tree==TRUE){
 		regimeindex<-colnames(phy$mapped.edge)
-		
 		for(i in 1:length(edges[,1])){
-			
 			anc = edges[i, 2]
 			desc = edges[i, 3]
 			
@@ -41,22 +37,12 @@ varcov.ou<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE, scaleHe
 				currentmap<-phy$maps[[i]]
 			}
 			oldtime=edges[i,4]
-			
-			if(anc%in%nodecode[,1]){
-				start=which(nodecode[,1]==anc)
-				oldregime=nodecode[start,2]
-			}
-			else{
-				newrow=c(anc,oldregime)
-				nodecode=rbind(nodecode,newrow)
-			}
 			for (regimeindex in 1:length(currentmap)){
 				regimeduration<-currentmap[regimeindex]
 				newtime<-oldtime+regimeduration
 				regimenumber<-which(colnames(phy$mapped.edge)==names(currentmap)[regimeindex])
 				nodevar1[i]=nodevar1[i]+alpha[regimenumber]*(newtime-oldtime)
 				nodevar2[i]=nodevar2[i]+sigma[regimenumber]*((exp(2*alpha[regimenumber]*newtime)-exp(2*alpha[regimenumber]*oldtime))/(2*alpha[regimenumber]))
-				
 				oldtime<-newtime
 				newregime<-regimenumber
 			}
@@ -66,21 +52,19 @@ varcov.ou<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE, scaleHe
 		}
 	}
 	if(simmap.tree==FALSE){
-		
 		for(i in 1:length(edges[,1])){
 			anc = edges[i,2]
-			desc = edges[i,3]
-			newregime=which(edges[i,6:(k+5)]==1)
 			oldtime=edges[i,4]
 			newtime=edges[i,5]
-			if(anc%in%nodecode[,1]){
-				start=which(nodecode[,1]==anc)
-				oldregime=nodecode[start,2]
+			if(anc%in%edges[,3]){
+				start=which(edges[,3]==anc)
+				oldregime=which(edges[start,6:(k+5)]==1)
 			}
 			else{
-				newrow=c(anc,oldregime)
-				nodecode=rbind(nodecode,newrow)
-			}
+				#For the root:
+				oldregime=oldregime
+			}	
+			newregime=which(edges[i,6:(k+5)]==1)
 			if(oldregime==newregime){
 				nodevar1[i]=alpha[oldregime]*(newtime-oldtime)
 				nodevar2[i]=sigma[oldregime]*((exp(2*alpha[oldregime]*newtime)-exp(2*alpha[oldregime]*oldtime))/(2*alpha[oldregime]))
@@ -101,7 +85,6 @@ varcov.ou<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE, scaleHe
 			n.cov2[edges[i,3],]=nodevar2[i]
 		}
 	}	
-	
 	vcv1<-mat.gen(phy,n.cov1,pp)
 	vcv2<-mat.gen(phy,n.cov2,pp)
 	vcv<-exp(-2*diag(vcv1))*vcv2
