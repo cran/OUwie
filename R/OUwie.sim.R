@@ -1,6 +1,6 @@
 ##OUwie Simulator##
 
-#written by Jeremy M. Beaulieu and Brian C. OMeara
+#written by Jeremy M. Beaulieu
 
 #Simulates the Hansen model of continuous characters evolving under discrete selective 
 #regimes. The input is a tree of class "phylo" that has the regimes as internal node labels 
@@ -64,10 +64,7 @@ OUwie.sim <- function(phy, data=NULL, simmap.tree=FALSE, scaleHeight=FALSE, alph
 		alpha=alpha
 		sigma=sqrt(sigma.sq)
 		theta=theta
-		
-		n.cov=matrix(rep(0,n*n), n, n)
-		nodecode=matrix(c(ntips+1,1),1,2)
-		
+
 		x <- matrix(0, n, 1)
 		TIPS <- 1:ntips
 		ROOT <- ntips + 1L
@@ -78,17 +75,15 @@ OUwie.sim <- function(phy, data=NULL, simmap.tree=FALSE, scaleHeight=FALSE, alph
 			desc = edges[i,3]
 			oldtime=edges[i,4]
 			newtime=edges[i,5]
-
-			newregime=which(edges[i,6:(k+5)]==1)
-
-			if(anc%in%nodecode[,1]){
-				start=which(nodecode[,1]==anc)
-				oldregime=nodecode[start,2]
+			if(anc%in%edges[,3]){
+				start=which(edges[,3]==anc)
+				oldregime=which(edges[start,6:(k+5)]==1)
 			}
 			else{
-				newrow=c(anc,oldregime)
-				nodecode=rbind(nodecode,newrow)
-			}
+				#For the root:
+				oldregime=oldregime
+			}	
+			newregime=which(edges[i,6:(k+5)]==1)
 			if(oldregime==newregime){
 				x[edges[i,3],]=x[edges[i,2],]*exp(-alpha[oldregime]*(newtime-oldtime))+(theta[oldregime])*(1-exp(-alpha[oldregime]*(newtime-oldtime)))+sigma[oldregime]*rnorm(1,0,1)*sqrt((1-exp(-2*alpha[oldregime]*(newtime-oldtime)))/(2*alpha[oldregime]))
 			}
@@ -99,7 +94,6 @@ OUwie.sim <- function(phy, data=NULL, simmap.tree=FALSE, scaleHeight=FALSE, alph
 				newtime=newtime
 				x[edges[i,3],]=epoch1*exp(-alpha[newregime]*(newtime-oldtime))+(theta[newregime])*(1-exp(-alpha[newregime]*(newtime-oldtime)))+sigma[newregime]*rnorm(1,0,1)*sqrt((1-exp(-2*alpha[newregime]*(newtime-oldtime)))/(2*alpha[newregime]))
 			}
-			oldregime=newregime
 		}
 		x<-round(x,8)
 		
@@ -165,14 +159,6 @@ OUwie.sim <- function(phy, data=NULL, simmap.tree=FALSE, scaleHeight=FALSE, alph
 			}
 			oldtime=edges[i,4]
 			
-			if(anc%in%nodecode[,1]){
-				start=which(nodecode[,1]==anc)
-				oldregime=nodecode[start,2]
-			}
-			else{
-				newrow=c(anc,oldregime)
-				nodecode=rbind(nodecode,newrow)
-			}
 			if(length(phy$maps[[i]])==1){
 				regimeduration<-currentmap[1]
 				newtime<-oldtime+regimeduration
@@ -196,7 +182,6 @@ OUwie.sim <- function(phy, data=NULL, simmap.tree=FALSE, scaleHeight=FALSE, alph
 					newregime<-regimenumber
 				}
 			}
-			oldregime=newregime
 		}
 		x<-round(x,8)
 		
