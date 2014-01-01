@@ -62,6 +62,7 @@ OUwie.sim <- function(phy, data=NULL, simmap.tree=FALSE, scaleHeight=FALSE, alph
 		oldregime=root.state
 		
 		alpha=alpha
+		alpha[alpha==0] = 1e-10
 		sigma=sqrt(sigma.sq)
 		theta=theta
 
@@ -95,7 +96,6 @@ OUwie.sim <- function(phy, data=NULL, simmap.tree=FALSE, scaleHeight=FALSE, alph
 				x[edges[i,3],]=epoch1*exp(-alpha[newregime]*(newtime-oldtime))+(theta[newregime])*(1-exp(-alpha[newregime]*(newtime-oldtime)))+sigma[newregime]*rnorm(1,0,1)*sqrt((1-exp(-2*alpha[newregime]*(newtime-oldtime)))/(2*alpha[newregime]))
 			}
 		}
-		x<-round(x,8)
 		
 		sim.dat<-matrix(,ntips,3)
 		sim.dat<-data.frame(sim.dat)
@@ -119,7 +119,7 @@ OUwie.sim <- function(phy, data=NULL, simmap.tree=FALSE, scaleHeight=FALSE, alph
 		branch.lengths[(ntips+1):(n-1)]=branching.times(phy)[-1]/max(branching.times(phy))
 		
 		#Obtain root state and internal node labels
-		root.state<-phy$map[[1]]
+		root.state<-which(colnames(phy$mapped.edge)==names(phy$maps[[1]][1]))
 		
 		#New tree matrix to be used for subsetting regimes
 		edges=cbind(c(1:(n-1)),phy$edge,nodeHeights(phy))
@@ -148,9 +148,6 @@ OUwie.sim <- function(phy, data=NULL, simmap.tree=FALSE, scaleHeight=FALSE, alph
 		
 		for(i in 1:length(edges[,1])){
 			
-			anc = edges[i, 2]
-			desc = edges[i, 3]
-
 			if(scaleHeight==TRUE){
 				currentmap<-phy$maps[[i]]/max(nodeHeights(phy))
 			}
@@ -164,8 +161,6 @@ OUwie.sim <- function(phy, data=NULL, simmap.tree=FALSE, scaleHeight=FALSE, alph
 				newtime<-oldtime+regimeduration
 				regimenumber<-which(colnames(phy$mapped.edge)==names(currentmap)[1])
 				x[edges[i,3],]=x[edges[i,2],]*exp(-alpha[regimenumber]*(newtime-oldtime))+(theta[regimenumber])*(1-exp(-alpha[regimenumber]*(newtime-oldtime)))+sigma[regimenumber]*rnorm(1,0,1)*sqrt((1-exp(-2*alpha[regimenumber]*(newtime-oldtime)))/(2*alpha[regimenumber]))
-				oldtime<-newtime
-				newregime<-regimenumber
 			}
 			if(length(phy$maps[[i]])>1){
 				regimeduration<-currentmap[1]
@@ -183,13 +178,12 @@ OUwie.sim <- function(phy, data=NULL, simmap.tree=FALSE, scaleHeight=FALSE, alph
 				}
 			}
 		}
-		x<-round(x,8)
 		
 		sim.dat<-matrix(,ntips,2)
 		sim.dat<-data.frame(sim.dat)
 		
 		sim.dat[,1]<-phy$tip.label
-		sim.dat[,2]<-x[TIPS]
+		sim.dat[,2]<-x[TIPS,]
 		
 		colnames(sim.dat)<-c("Genus_species","X")
 	}
