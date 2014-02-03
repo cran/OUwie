@@ -49,7 +49,7 @@ weight.mat<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE, scaleH
 							nodevar[i] <- exp(-alpha[root.state])*(exp(alpha[regimenumber]*newtime)-exp(alpha[regimenumber]*oldtime))
 						}
 						else{
-							nodevar[i]= nodevar[i] + 0
+							nodevar[i]=nodevar[i]
 						}
 						oldtime <- newtime
 					}
@@ -125,7 +125,7 @@ weight.mat<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE, scaleH
 							nodevar[i] <- exp(-alpha[root.state])*(exp(alpha[regimenumber]*newtime)-exp(alpha[regimenumber]*oldtime))
 						}
 						else{
-							nodevar[i]= nodevar[i] + 0
+							nodevar[i] = nodevar[i]
 						}
 						oldtime <- newtime
 					}

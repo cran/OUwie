@@ -246,6 +246,7 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 		}
 		theta<-Inf
 		try(theta<-pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)%*%t(W)%*%pseudoinverse(V)%*%x, silent=TRUE)
+
 		if(any(theta==Inf)){
 			return(10000000)
 		}
@@ -254,6 +255,10 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 		
 		logl<--.5*(t(W%*%theta-x)%*%pseudoinverse(V)%*%(W%*%theta-x))-.5*as.numeric(DET$modulus)-.5*(N*log(2*pi))
 		
+		if(logl==Inf){
+			return(10000000)
+		}
+
 		return(-logl)
 	}
 	
@@ -369,7 +374,7 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 	theta <- dev.theta(out$solution, index.mat, edges, mserr)
 	#Calculates the Hessian for use in calculating standard errors and whether the maximum likelihood solution was found
 	if(diagn==TRUE){
-		h <- hessian(x=out$solution, func=dev, index.mat=index.mat, mserr=mserr)
+		h <- hessian(x=out$solution, func=dev, index.mat=index.mat, edges=edges, mserr=mserr)
 		#Using the corpcor package here to overcome possible NAs with calculating the SE
 		solution<-matrix(out$solution[index.mat], dim(index.mat))
 		solution.se<-matrix(sqrt(diag(pseudoinverse(h)))[index.mat], dim(index.mat))
