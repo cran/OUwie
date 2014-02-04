@@ -235,9 +235,8 @@ OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","O
 		N<-length(x[,1])
 		V<-varcov.ou(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, scaleHeight=scaleHeight)
 		W<-weight.mat(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, scaleHeight=scaleHeight,assume.station=bool)
-
 		if(mserr=="known"){
-			diag(V)<-diag(V)+data[,3]
+			diag(V)<-diag(V)+(data[,3]^2)
 		}
 #		if(mserr=="est"){
 #			diag(V)<-diag(V)+p[length(p)]
@@ -254,11 +253,8 @@ OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","O
 
 		theta.est<-cbind(theta,se)
 		res<-W%*%theta-x
-		
-		DET<-determinant(V, logarithm=TRUE)
-		
-		logl<--.5*(t(W%*%theta-x)%*%pseudoinverse(V)%*%(W%*%theta-x))-.5*as.numeric(DET$modulus)-.5*(N*log(2*pi))
-				
+		DET <- log(prod(abs(Re(diag(qr(V)$qr)))))
+		logl<--.5*(t(W%*%theta-x)%*%pseudoinverse(V)%*%(W%*%theta-x))-.5*as.numeric(DET)-.5*(N*log(2*pi))
 		list(-logl,theta.est,res)
 	}
 	if(quiet==FALSE){

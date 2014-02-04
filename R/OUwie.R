@@ -9,7 +9,7 @@
 #global OU (OU1), multiple regime OU (OUM), multiple sigmas (OUMV), multiple alphas (OUMA), 
 #and the multiple alphas and sigmas (OUMVA). 
 
-OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"), simmap.tree=FALSE, scaleHeight=FALSE, root.station=TRUE, lb=0.000001, ub=1000, clade=NULL, mserr="none", diagn=FALSE, quiet=FALSE){
+OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"), simmap.tree=FALSE, scaleHeight=FALSE, root.station=TRUE, lb=0.000001, ub=1000, clade=NULL, mserr="none", diagn=FALSE, quiet=FALSE, warn=TRUE){
 	#Makes sure the data is in the same order as the tip labels
 	if(mserr=="none" | mserr=="est"){
 		data<-data.frame(data[,2], data[,3], row.names=data[,1])
@@ -230,6 +230,13 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 			bool=root.station
 		}
 	}
+
+	if(warn==TRUE){
+		if(param.count > (ntips/10)){
+			warning("It's likely you do not have enough data to fit this model well", call.=FALSE, immediate.=TRUE)
+		}
+	}
+	
 	Rate.mat <- matrix(1, 2, k)
 	#Likelihood function for estimating model parameters
 	dev<-function(p, index.mat, edges, mserr){
@@ -237,28 +244,28 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 		N<-length(x[,1])
 		V<-varcov.ou(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, scaleHeight=scaleHeight)
 		W<-weight.mat(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, scaleHeight=scaleHeight, assume.station=bool)
+		
 		if (any(is.nan(diag(V))) || any(is.infinite(diag(V)))) return(1000000)		
 		if(mserr=="known"){
-			diag(V)<-diag(V)+data[,3]
+			diag(V)<-diag(V)+(data[,3]^2)
 		}
 		if(mserr=="est"){
-			diag(V)<-diag(V)+p[length(p)]
+			diag(V)<-diag(V)+(p[length(p)]^2)
 		}
 		theta<-Inf
 		try(theta<-pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)%*%t(W)%*%pseudoinverse(V)%*%x, silent=TRUE)
-
 		if(any(theta==Inf)){
 			return(10000000)
 		}
-				
-		DET<-determinant(V, logarithm=TRUE)
 		
-		logl<--.5*(t(W%*%theta-x)%*%pseudoinverse(V)%*%(W%*%theta-x))-.5*as.numeric(DET$modulus)-.5*(N*log(2*pi))
+		#DET<-determinant(V, logarithm=TRUE)
+		#When the values of V get too small, the modulus is not correct and the loglihood becomes unstable. This is my solution:
+		DET <- log(prod(abs(Re(diag(qr(V)$qr)))))
 		
-		if(logl==Inf){
+		logl<--.5*(t(W%*%theta-x)%*%pseudoinverse(V)%*%(W%*%theta-x))-.5*as.numeric(DET)-.5*(N*log(2*pi))
+		if(!is.finite(logl)){
 			return(10000000)
 		}
-
 		return(-logl)
 	}
 	
@@ -298,13 +305,16 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 			edges.tmp=edges
 		}
 		init <- nloptr(x0=rep(sig, length.out = init.np), eval_f=dev, lb=init.lower, ub=init.upper, opts=opts, index.mat=init.index.mat, edges=edges.tmp, mserr="none")
-		init.ip <- c(init$solution[1],init$solution[2])
+		init.ip <- c(init$solution[1], init$solution[2])
 		if(model=="OU1"){
 			ip=init.ip
 		}
-		else{
+		if(model=="OUMV" | model=="OUMA" | model=="OUM"){
 			ip<-c(rep(init.ip[1],length(unique(index.mat[1,]))),rep(init.ip[2],length(unique(index.mat[2,]))))
-		}		
+		}
+		if(model=="OUMVA"){
+			ip<-c(rep(init.ip,k))
+		}
 		if(mserr=="est"){
 			ip<-c(ip,sig^.5)
 			lower = c(lower,0)
@@ -351,10 +361,10 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 		V<-varcov.ou(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, scaleHeight=scaleHeight)
 		W<-weight.mat(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, scaleHeight=scaleHeight, assume.station=bool)
 		if(mserr=="known"){
-			diag(V)<-diag(V)+data[,3]
+			diag(V)<-diag(V)+(data[,3]^2)
 		}
 		if(mserr=="est"){
-			diag(V)<-diag(V)+p[length(p)]
+			diag(V)<-diag(V)+(p[length(p)]^2)
 		}
 		theta<-pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)%*%t(W)%*%pseudoinverse(V)%*%x
 		#Calculates the hat matrix:
