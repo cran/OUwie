@@ -233,7 +233,7 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 
 	if(warn==TRUE){
 		if(param.count > (ntips/10)){
-			warning("It's likely you do not have enough data to fit this model well", call.=FALSE, immediate.=TRUE)
+			warning("You might not have enough data to fit this model well", call.=FALSE, immediate.=TRUE)
 		}
 	}
 	
@@ -244,7 +244,6 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 		N<-length(x[,1])
 		V<-varcov.ou(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, scaleHeight=scaleHeight)
 		W<-weight.mat(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, scaleHeight=scaleHeight, assume.station=bool)
-		
 		if (any(is.nan(diag(V))) || any(is.infinite(diag(V)))) return(1000000)		
 		if(mserr=="known"){
 			diag(V)<-diag(V)+(data[,3]^2)
@@ -261,7 +260,6 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 		#DET<-determinant(V, logarithm=TRUE)
 		#When the values of V get too small, the modulus is not correct and the loglihood becomes unstable. This is my solution:
 		DET <- log(prod(abs(Re(diag(qr(V)$qr)))))
-		
 		logl<--.5*(t(W%*%theta-x)%*%pseudoinverse(V)%*%(W%*%theta-x))-.5*as.numeric(DET)-.5*(N*log(2*pi))
 		if(!is.finite(logl)){
 			return(10000000)
@@ -276,7 +274,7 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 	lower = rep(lb, np)
 	upper = rep(ub, np)
 	
-	opts <- list("algorithm"="NLOPT_LN_SBPLX", "maxeval"="1000000", "ftol_rel"=.Machine$double.eps^0.25)
+	opts <- list("algorithm"="NLOPT_LN_SBPLX", "maxeval"="1000000", "ftol_rel"=.Machine$double.eps^0.5)
 	
 	if(model == "OU1" | model == "OUM" | model == "OUMV" | model == "OUMA" | model == "OUMVA"){
 		if(scaleHeight==TRUE){
@@ -304,7 +302,8 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 		}else{
 			edges.tmp=edges
 		}
-		init <- nloptr(x0=rep(sig, length.out = init.np), eval_f=dev, lb=init.lower, ub=init.upper, opts=opts, index.mat=init.index.mat, edges=edges.tmp, mserr="none")
+		#Initial value for alpha is just the half life based on the entire length of the tree:
+		init <- nloptr(x0=c(log(2)/max(branching.times(phy)),sig), eval_f=dev, lb=init.lower, ub=init.upper, opts=opts, index.mat=init.index.mat, edges=edges.tmp, mserr="none")
 		init.ip <- c(init$solution[1], init$solution[2])
 		if(model=="OU1"){
 			ip=init.ip
