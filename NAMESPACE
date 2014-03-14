@@ -1,6 +1,7 @@
 export(OUwie,OUwie.sim,OUwie.fixed)
-import(ape, nloptr, corpcor, lattice, grDevices, phytools, phangorn)
+import(ape, nloptr, corpcor, lattice, grDevices, phytools)
 importFrom(numDeriv, hessian)
+importFrom(phangorn, Descendants)
 exportClasses('OUwie','OUwie.fixed')
 S3method(print, OUwie)
 S3method(print, OUwie.fixed)
