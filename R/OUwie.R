@@ -249,18 +249,30 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 			diag(V)<-diag(V)+(data[,3]^2)
 		}
 		if(mserr=="est"){
-			diag(V)<-diag(V)+(p[length(p)]^2)
+			diag(V)<-diag(V)+(p[length(p)])
 		}
 		theta<-Inf
 		try(theta<-pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)%*%t(W)%*%pseudoinverse(V)%*%x, silent=TRUE)
 		if(any(theta==Inf)){
 			return(10000000)
 		}
+
+#		#Uses multivariate normal rather than calculates logl on its own - faster but often returns errors:
+#		logl<-Inf
+#		try(logl <- dmvnorm(c(x), W%*%theta, V, log=TRUE), silent=TRUE)
+#		if(any(theta==Inf)){
+#			return(10000000)
+#		}		
 		
-		#DET<-determinant(V, logarithm=TRUE)
-		#When the values of V get too small, the modulus is not correct and the loglihood becomes unstable. This is my solution:
-		DET <- log(prod(abs(Re(diag(qr(V)$qr)))))
-		logl<--.5*(t(W%*%theta-x)%*%pseudoinverse(V)%*%(W%*%theta-x))-.5*as.numeric(DET)-.5*(N*log(2*pi))
+		#When the model includes alpha, the values of V can get too small, the modulus does not seem correct and the loglik becomes unstable. This is one solution:
+		DET <- sum(log(abs(Re(diag(qr(V)$qr)))))
+		#However, sometimes this fails (not sure yet why) so I just toggle between this and another approach:
+		if(!is.finite(DET)){
+			DET<-determinant(V, logarithm=TRUE)
+			logl<--.5*(t(W%*%theta-x)%*%pseudoinverse(V)%*%(W%*%theta-x))-.5*as.numeric(DET$modulus)-.5*(N*log(2*pi))
+		}else{
+			logl<--.5*(t(W%*%theta-x)%*%pseudoinverse(V)%*%(W%*%theta-x))-.5*as.numeric(DET)-.5*(N*log(2*pi))
+		}
 		if(!is.finite(logl)){
 			return(10000000)
 		}
@@ -303,7 +315,7 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 			edges.tmp=edges
 		}
 		#Initial value for alpha is just the half life based on the entire length of the tree:
-		init <- nloptr(x0=c(log(2)/max(branching.times(phy)),sig), eval_f=dev, lb=init.lower, ub=init.upper, opts=opts, index.mat=init.index.mat, edges=edges.tmp, mserr="none")
+		init <- nloptr(x0=c(log(2)/max(branching.times(phy)),sig), eval_f=dev, lb=init.lower, ub=init.upper, opts=opts, index.mat=init.index.mat, edges=edges.tmp, mserr=mserr)
 		init.ip <- c(init$solution[1], init$solution[2])
 		if(model=="OU1"){
 			ip=init.ip
@@ -315,7 +327,7 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 			ip<-c(rep(init.ip,k))
 		}
 		if(mserr=="est"){
-			ip<-c(ip,sig^.5)
+			ip<-c(ip,sig)
 			lower = c(lower,0)
 			upper = c(upper,ub)
 		}		
@@ -341,7 +353,7 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 			ip=sig
 		}
 		if(mserr=="est"){
-			ip<-c(ip,sig^.5)
+			ip<-c(ip,sig)
 			lower = c(lower,0)
 			upper = c(upper,10)
 		}
@@ -363,7 +375,7 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 			diag(V)<-diag(V)+(data[,3]^2)
 		}
 		if(mserr=="est"){
-			diag(V)<-diag(V)+(p[length(p)]^2)
+			diag(V)<-diag(V)+(p[length(p)])
 		}
 		theta<-pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)%*%t(W)%*%pseudoinverse(V)%*%x
 		#Calculates the hat matrix:
@@ -406,7 +418,7 @@ OUwie<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA")
 		else{
 			mserr.est<-NULL
 		}		
-		obj = list(loglik = loglik, AIC = -2*loglik+2*param.count,AICc=-2*loglik+(2*param.count*(ntips/(ntips-param.count-1))),model=model,solution=solution, theta=theta$theta.est, solution.se=solution.se, tot.states=tot.states, index.mat=index.mat, simmap.tree=simmap.tree, opts=opts, data=data, phy=phy, root.station=root.station, lb=lower, ub=upper, iterations=out$iterations, res=theta$res, eigval=eigval, eigvect=eigvect) 
+		obj = list(loglik = loglik, AIC = -2*loglik+2*param.count,AICc=-2*loglik+(2*param.count*(ntips/(ntips-param.count-1))),model=model,solution=solution, mserr.est=mserr.est, theta=theta$theta.est, solution.se=solution.se, tot.states=tot.states, index.mat=index.mat, simmap.tree=simmap.tree, opts=opts, data=data, phy=phy, root.station=root.station, lb=lower, ub=upper, iterations=out$iterations, res=theta$res, eigval=eigval, eigvect=eigvect) 
 		
 	}
 	if(diagn==FALSE){

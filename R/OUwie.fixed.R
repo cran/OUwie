@@ -253,8 +253,15 @@ OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","O
 
 		theta.est<-cbind(theta,se)
 		res<-W%*%theta-x
-		DET <- log(prod(abs(Re(diag(qr(V)$qr)))))
-		logl<--.5*(t(W%*%theta-x)%*%pseudoinverse(V)%*%(W%*%theta-x))-.5*as.numeric(DET)-.5*(N*log(2*pi))
+		#When the model includes alpha, the values of V can get too small, the modulus does not seem correct and the loglik becomes unstable. This is one solution:
+		DET <- sum(log(abs(Re(diag(qr(V)$qr)))))
+		#However, sometimes there are underflow issues so I toggle between the two approaches:
+		if(!is.finite(DET)){
+			DET<-determinant(V, logarithm=TRUE)
+			logl<--.5*(t(W%*%theta-x)%*%pseudoinverse(V)%*%(W%*%theta-x))-.5*as.numeric(DET$modulus)-.5*(N*log(2*pi))
+		}else{
+			logl<--.5*(t(W%*%theta-x)%*%pseudoinverse(V)%*%(W%*%theta-x))-.5*as.numeric(DET)-.5*(N*log(2*pi))
+		}
 		list(-logl,theta.est,res)
 	}
 	if(quiet==FALSE){
