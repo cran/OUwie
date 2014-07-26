@@ -515,15 +515,14 @@ print.OUwie<-function(x, ...){
 		}
 		if (x$root.station == FALSE){
 			if (x$model == "OUM"| x$model == "OUMV"| x$model == "OUMA" | x$model == "OUMVA"){ 
-				print(x$theta)
 				param.est<- x$solution
 				theta.mat<-matrix(t(x$theta), 2, length(levels(x$tot.states))+1)
 				rownames(theta.mat)<-c("estimate", "se")
 				if(x$simmap.tree==FALSE){
-					colnames(theta.mat)<-c("Root", levels(x$tot.states))
+					colnames(theta.mat)<-c("root", levels(x$tot.states))
 				}
 				if(x$simmap.tree==TRUE){
-					colnames(theta.mat)<-c("Root", colnames(x$phy$mapped.edge))
+					colnames(theta.mat)<-c("root", colnames(x$phy$mapped.edge))
 				}
 				cat("\nRates\n")
 				print(param.est)

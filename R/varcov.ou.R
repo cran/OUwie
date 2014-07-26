@@ -62,7 +62,7 @@ varcov.ou<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE, scaleHe
 			}
 			else{
 				#For the root:
-				oldregime=oldregime
+				oldregime=root.state
 			}	
 			newregime=which(edges[i,6:(k+5)]==1)
 			if(oldregime==newregime){
