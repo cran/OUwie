@@ -2,7 +2,7 @@
 
 #written by Jeremy M. Beaulieu
 
-OUwie.boot <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"), nboot=100, alpha, sigma.sq, theta, theta0, simmap.tree=FALSE, scaleHeight=FALSE, root.station=TRUE, clade=NULL, lb=0.000001, ub=1000, mserr="none", diagn=FALSE, quiet=TRUE, warn=FALSE){
+OUwie.boot <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"), nboot=100, alpha, sigma.sq, theta, theta0, simmap.tree=FALSE, scaleHeight=FALSE, root.station=TRUE, clade=NULL, mserr="none", diagn=FALSE, quiet=TRUE, warn=FALSE){
 	
 	#the matrix we are building to store the results:
 	res<-c()
@@ -31,7 +31,7 @@ OUwie.boot <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA",
 		#Replaces the data column with the simulated data:
 		data[,3] <- tmp[,3]
 		#Now run OUwie, using the measurement error if it is contained within the data, to estimate the parameters from the simulated data:
-		tmp <- OUwie(phy, data, model=model, simmap.tree=simmap.tree, scaleHeight=scaleHeight, root.station=root.station, lb=lb, ub=ub, clade=clade, mserr=mserr, diagn=diagn, quiet=quiet, warn=warn)
+		tmp <- OUwie(phy, data, model=model, simmap.tree=simmap.tree, scaleHeight=scaleHeight, root.station=root.station, clade=clade, mserr=mserr, diagn=diagn, quiet=quiet, warn=warn)
 		#Now bind all the relevant output together
 		res <- rbind(res, c(tmp$solution[1,], tmp$solution[2,], tmp$theta[,1]))
 	}

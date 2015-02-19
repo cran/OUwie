@@ -2,7 +2,7 @@
 
 #written by Jeremy M. Beaulieu
 
-OUwie.joint <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMVr","OUMA","OUMAr","OUMVA","OUMVAr"), ntraits, allfree=TRUE, simmap.tree=FALSE, scaleHeight=FALSE, root.station=TRUE, lb=0.000001, ub=1000, mserr="none", diagn=FALSE, quiet=FALSE){
+OUwie.joint <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMVr","OUMA","OUMAr","OUMVA","OUMVAr"), ntraits, allfree=TRUE, simmap.tree=FALSE, scaleHeight=FALSE, root.station=TRUE, mserr="none", diagn=FALSE, quiet=FALSE){
 
 	#Makes sure the data is in the same order as the tip labels
 	if(mserr=="none" | mserr=="est"){
@@ -12,8 +12,8 @@ OUwie.joint <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMVr
 		stop("You specified measurement error and it is not supported yet.")
 	}
 	tot.states<-factor(c(phy$node.label,as.character(data[,2])))
-	k<-length(levels(tot.states))
-	x<-as.matrix(data[,3:(ntraits+2)])
+	k <- length(levels(tot.states))
+	x <- as.matrix(data[,3:(ntraits+2)])
 	if(allfree==TRUE){
 		if (is.character(model)) {
 			index.mat<-matrix(0,2,k*ntraits)
@@ -27,8 +27,8 @@ OUwie.joint <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMVr
 					index.mat[1,1:(k*ntraits)]<-np+1				
 				}
 				count<-1
-				for(i in seq(from = 1, by = 2, length.out = ntraits)){
-					j=i+1
+				for(i in seq(from = 1, by = k, length.out = ntraits)){
+					j=(i+1):(i+k-1)
 					index.mat[2,c(i,j)]<-count
 					count<-count+1
 				}
@@ -52,10 +52,10 @@ OUwie.joint <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMVr
 			if (model == "OU1"){
 				np=2*ntraits
 				index<-matrix(TRUE,2,k*ntraits)
-				for(i in seq(from = 1, by = 2, length.out = ntraits)){
-					j=i+1
-					index.mat[1,c(i,j)]<-c(i)
-					index.mat[2,c(i,j)]<-c(j)
+				for(i in seq(from = 1, by = k, length.out = ntraits)){
+					j=(i+1):(i+k-1)
+					index.mat[1,c(i,j)]<- max(index.mat)+1
+					index.mat[2,c(i,j)]<- max(index.mat)+1
 				}
 				if(root.station==TRUE){
 					param.count<-np+1
@@ -68,10 +68,10 @@ OUwie.joint <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMVr
 			if (model == "OUM"){
 				np=2*ntraits
 				index<-matrix(TRUE,2,k)
-				for(i in seq(from = 1, by = 2, length.out = ntraits)){
-					j=i+1
-					index.mat[1,c(i,j)]<-c(i)
-					index.mat[2,c(i,j)]<-c(j)
+				for(i in seq(from = 1, by = k, length.out = ntraits)){
+					j=(i+1):(i+k-1)
+					index.mat[1,c(i,j)]<- max(index.mat)+1
+					index.mat[2,c(i,j)]<- max(index.mat)+1
 				}
 				if(root.station==TRUE){
 					param.count<-np+k
@@ -84,13 +84,11 @@ OUwie.joint <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMVr
 			if (model == "OUMV") {
 				np=(k+1)*ntraits
 				index<-matrix(TRUE,2,k)
-				count<-1
-				for(i in seq(from = 1, by = 2, length.out = ntraits)){
-					j=i+1
-					index.mat[1,c(i,j)]<-count
-					index.mat[2,c(i,j)]<-c(count+1,count+2)
-					count<-count+3
-				}			
+				for(i in seq(from = 1, by = k, length.out = ntraits)){
+					j=(i+1):(i+k-1)
+					index.mat[1,c(i,j)] <- max(index.mat)+1
+					index.mat[2,c(i,j)] <- seq(max(index.mat)+1, by=1, max(index.mat)+k)
+				}	
 				if(root.station==TRUE){
 					param.count<-np+k
 				}
@@ -111,17 +109,15 @@ OUwie.joint <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMVr
 					param.count<-np+k+1
 				}
 				bool=root.station
-			}									
+			}	
 			if (model == "OUMA") {
 				np=(k+1)*ntraits
 				index<-matrix(TRUE,2,k*ntraits)
-				count<-1
-				for(i in seq(from = 1, by = 2, length.out = ntraits)){
-					j=i+1
-					index.mat[2,c(i,j)]<-count+1
-					index.mat[1,c(i,j)]<-c(count,count+2)
-					count<-count+3
-				}			
+				for(i in seq(from = 1, by = k, length.out = ntraits)){
+					j=(i+1):(i+k-1)
+					index.mat[1,c(i,j)]<-seq(max(index.mat)+1, by=1, max(index.mat)+k)
+					index.mat[2,c(i,j)]<-max(index.mat)+1
+				}
 				if(root.station==TRUE){
 					param.count<-np+k
 				}
@@ -263,6 +259,7 @@ OUwie.joint <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMVr
 	}
 	Rate.mat <- matrix(1, 2, k*ntraits)
 	optim.dev <- function(p, phy, data, model, ntraits, index.mat, mserr){
+		p = exp(p)
 		if(model=="OUMVr" | model == "OUMAr"){
 			if(model=="OUMVr"){	
 				model.tmp = "OUMV"
@@ -276,10 +273,10 @@ OUwie.joint <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMVr
 		Rate.mat[] <- c(p, 1e-10)[index.mat]
 		loglik <- 0
 		count <- 3
-		for(i in seq(from = 1, by = 2, length.out = ntraits)){
-			j=i+1
+		for(i in seq(from = 1, by = k, length.out = ntraits)){
+			j=(i+1):(i+k-1)
 			tmp<-NA
-			try(tmp <- OUwie.fixed(phy,data[,c(1,2,count)], model=model.tmp, alpha=c(Rate.mat[1,c(i,j)]), sigma.sq=c(Rate.mat[2,c(i,j)]), quiet=TRUE)$loglik, silent=TRUE)
+			try(tmp <- OUwie.fixed(phy,data[,c(1,2,count)], model=model.tmp, simmap.tree=simmap.tree, alpha=c(Rate.mat[1,c(i,j)]), sigma.sq=c(Rate.mat[2,c(i,j)]), quiet=TRUE)$loglik, silent=TRUE)
 			if(!is.finite(tmp)){
 				return(10000000)
 			}
@@ -297,9 +294,11 @@ OUwie.joint <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMVr
 		cat("Initializing...", "\n")
 	}
 	
+	lb = -20
+	ub = 20
 	lower = rep(lb, np)
 	upper = rep(ub, np)
-	opts <- list("algorithm"="NLOPT_LN_SBPLX", "maxeval"="10000000", "ftol_rel"=.Machine$double.eps^0.5)
+	opts <- list("algorithm"="NLOPT_LN_SBPLX", "maxeval"="1000000", "ftol_rel"=.Machine$double.eps^0.5)
 	
 	if(model == "OU1" | model == "OUM" | model == "OUMV" | model == "OUMVr" | model == "OUMA" | model == "OUMAr" | model == "OUMVA"){
 		n=max(phy$edge[,1])
@@ -321,38 +320,50 @@ OUwie.joint <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMVr
 				init.index.mat <- cbind(init.index.mat, init.index.mat.tmp+2)
 				init.index.mat.tmp <- init.index.mat.tmp+2
 				#start.vals <- c(start.vals, rep(diag(sig)[i],k))
-				start.vals <- c(start.vals, c(log(2)/max(branching.times(phy)),diag(sig)[1]))
+				start.vals <- c(start.vals, c(log(2)/max(branching.times(phy)),diag(sig)[i]))
 			}
-			init <- nloptr(x0=start.vals, eval_f=optim.dev, lb=init.lower, ub=init.upper, opts=opts, phy=phy, data=data, model="OU1", ntraits=ntraits, index.mat=init.index.mat, mserr="none")
-			init.ip <- init$solution
-			if(model == "OUMVr" | model == "OUMAr"){
-				if(model=="OUMVr"){
-					ip<-mean(init$solution[seq(from = 1, by = 2, length.out = ntraits)])
-					for(i in seq(from = 1, by = 2, length.out = ntraits)){
-						j=i+1
-						ip<-c(ip,rep(init.ip[j],length(unique(index.mat[2,i:j]))))
-					}
-				}
-				if(model == "OUMAr"){
-					ip<-c()
-					for(i in seq(from = 1, by = 2, length.out = ntraits)){
-						j=i+1
-						ip<-c(ip,rep(init.ip[i],length(unique(index.mat[1,i:j]))))
-					}
-					ip <- c(ip,mean(init$solution[seq(from = 1, by = 2, length.out = ntraits)]))
-				}
+			init <- nloptr(x0=log(start.vals), eval_f=optim.dev, lb=init.lower, ub=init.upper, opts=opts, phy=phy, data=data, model="OU1", ntraits=ntraits, index.mat=init.index.mat, mserr="none")
+			init.ip <- exp(init$solution)
+			if(model == "OU1" | model == "OUM"){
+				ip = init.ip
 			}else{
-				ip<-c()
-				if(model == "OUMA" | model == "OUMV"){ 
-					for(i in seq(from = 1, by = 2, length.out = ntraits)){
-						j=i+1
-						ip<-c(ip,rep(init.ip[i],length(unique(index.mat[1,i:j]))),rep(init.ip[j],length(unique(index.mat[2,i:j]))))
+				if(model == "OUMVr" | model == "OUMAr"){
+					if(model=="OUMVr"){
+						count <- 1
+						ip <- mean(init.ip[seq(from = 1, by = 2, length.out = ntraits)])
+						for(i in seq(from = 1, by = k, length.out = ntraits)){
+							j=(i+1):(i+k-1)
+							ip<-c(ip,rep(init.ip[count+1],length(unique(index.mat[2,c(i,j)]))))
+							count <- count + 2
+						}
 					}
-				}
-				if(model == "OUMVA"){
-					for(i in seq(from = 1, by = 2, length.out = ntraits)){
-						j=i+1
-						ip<-c(ip,rep(c(init.ip[i],init.ip[j]),k))
+					if(model == "OUMAr"){
+						ip<-c()
+						count <- 1
+						ip <- mean(init.ip[seq(from = 2, by = 2, length.out = ntraits)])
+						for(i in seq(from = 1, by = k, length.out = ntraits)){
+							j=(i+1):(i+k-1)
+							ip <- c(ip,rep(init.ip[count],length(unique(index.mat[1,c(i,j)]))))
+							count <- count + 2
+						}
+					}
+				}else{
+					ip<-c()
+					if(model == "OUMA" | model == "OUMV"){ 
+						count <- 1
+						for(i in seq(from = 1, by = k, length.out = ntraits)){
+							j=(i+1):(i+k-1)
+							ip<-c(ip,rep(init.ip[count],length(unique(index.mat[1,c(i,j)]))),rep(init.ip[count+1],length(unique(index.mat[2,c(i,j)]))))
+							count <- count + 2 
+						}
+					}
+					if(model == "OUMVA"){
+						count <- 1
+						for(i in seq(from = 1, by = k, length.out = ntraits)){
+							j=(i+1):(i+k-1)
+							ip<-c(ip,rep(c(init.ip[count],init.ip[count+1]),k))
+							count <- count + 2
+						}
 					}
 				}
 			}
@@ -367,15 +378,15 @@ OUwie.joint <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMVr
 			if(model=="OU1" | model == "OUM"){
 				#start.vals <- rep(mean(diag(sig)),2)
 				start.vals<-c(log(2)/max(branching.times(phy)),mean(diag(sig)))
-				init <- nloptr(x0=start.vals, eval_f=optim.dev, lb=lower, ub=upper, opts=opts, phy=phy, data=data, model="OU1", ntraits=ntraits, index.mat=init.index.mat, mserr="none")
-				init.ip <- c(init$solution[1],init$solution[2])				
+				init <- nloptr(x0=log(start.vals), eval_f=optim.dev, lb=lower, ub=upper, opts=opts, phy=phy, data=data, model="OU1", ntraits=ntraits, index.mat=init.index.mat, mserr="none")
+				init.ip <- exp(c(init$solution[1],init$solution[2]))				
 				ip=init.ip
 			}
 			else{
 				#start.vals <- rep(mean(diag(sig)),np)
 				start.vals <- c(log(2)/max(branching.times(phy)),mean(diag(sig)))
-				init <- nloptr(x0=start.vals, eval_f=optim.dev, lb=init.lower, ub=init.upper, opts=opts, phy=phy, data=data, model="OU1", ntraits=ntraits, index.mat=init.index.mat, mserr="none")
-				init.ip <- init$solution
+				init <- nloptr(x0=log(start.vals), eval_f=optim.dev, lb=init.lower, ub=init.upper, opts=opts, phy=phy, data=data, model="OU1", ntraits=ntraits, index.mat=init.index.mat, mserr="none")
+				init.ip <- exp(init$solution)
 				if(model == "OUMA" | model == "OUMV"){ 
 					ip<-c(rep(init.ip[1],length(unique(index.mat[1,]))),rep(init.ip[2],length(unique(index.mat[2,]))))
 				}
@@ -387,7 +398,7 @@ OUwie.joint <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMVr
 		if(quiet==FALSE){
 			cat("Finished. Begin thorough search...", "\n")
 		}
-		out = nloptr(x0=ip, eval_f=optim.dev, lb=lower, ub=upper, opts=opts, phy=phy, data=data, model=model, ntraits=ntraits, index.mat=index.mat, mserr="none")
+		out = nloptr(x0=log(ip), eval_f=optim.dev, lb=lower, ub=upper, opts=opts, phy=phy, data=data, model=model, ntraits=ntraits, index.mat=index.mat, mserr="none")
 	}
 	else{
 		#Starting values follow from phytools:
@@ -404,7 +415,7 @@ OUwie.joint <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMVr
 				ip=c()
 				sigs<-diag(sig)
 				for(i in 1:length(sigs)){
-					ip <- c(ip, c(sigs[i],sigs[i]))
+					ip <- c(ip, c(rep(sigs[i],k)))
 				}
 			}
 			if(mserr=="est"){
@@ -415,10 +426,10 @@ OUwie.joint <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMVr
 			if(quiet==FALSE){
 				cat("Finished. Begin thorough search...", "\n")
 			}
-			out = nloptr(x0=ip, eval_f=optim.dev, lb=lower, ub=upper, opts=opts, phy=phy, data=data, model=model, ntraits=ntraits, index.mat=index.mat, mserr="none")
+			out = nloptr(x0=log(ip), eval_f=optim.dev, lb=lower, ub=upper, opts=opts, phy=phy, data=data, model=model, ntraits=ntraits, index.mat=index.mat, mserr="none")
 		}else{
 			if(model=="BM1"){
-				ip=diag(sig)
+				ip=mean(diag(sig))
 			}
 			if(model=="BMS"){
 				ip=c()
@@ -429,12 +440,11 @@ OUwie.joint <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMVr
 			if(quiet==FALSE){
 				cat("Finished. Begin thorough search...", "\n")
 			}
-			out = nloptr(x0=ip, eval_f=optim.dev, lb=lower, ub=upper, opts=opts, phy=phy, data=data, model=model, ntraits=ntraits, index.mat=index.mat, mserr="none")
+			out = nloptr(x0=log(ip), eval_f=optim.dev, lb=lower, ub=upper, opts=opts, phy=phy, data=data, model=model, ntraits=ntraits, index.mat=index.mat, mserr="none")
 		}
 	}
-	
 	loglik <- -out$objective
-	
+	out$solution = exp(out$solution)
 	solution<-matrix(out$solution[index.mat], dim(index.mat))
 	rownames(solution) <- rownames(index.mat) <- c("alpha","sigma.sq")
 	if(simmap.tree==FALSE){
@@ -442,10 +452,10 @@ OUwie.joint <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMVr
 	}
 	if(simmap.tree==TRUE){
 		colnames(solution) <- rep(colnames(phy$mapped.edge),ntraits)
-	}	
-	thetas<-c()
-	count<-3
-	for(i in seq(from = 1, by = 2, length.out = ntraits)){
+	}
+	thetas <- c()
+	count <- 3
+	for(i in seq(from = 1, by = k, length.out = ntraits)){
 		if(model=="OUMVr" | model == "OUMAr"){
 			if(model=="OUMVr"){	
 				model.tmp = "OUMV"
@@ -456,17 +466,20 @@ OUwie.joint <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMVr
 		}else{
 			model.tmp = model
 		}
-		
 		if(model.tmp == "BM1" | model.tmp == "BMS" | model.tmp == "OU1"){
-			j=i+1
-			tmp <- OUwie.fixed(phy,data[,c(1,2,count)],model=model.tmp, alpha=c(solution[1,c(i,j)]), sigma.sq=c(solution[2,c(i,j)]), quiet=TRUE)$theta
+			j=(i+1):(i+k-1)
+			tmp <- OUwie.fixed(phy,data[,c(1,2,count)], model=model.tmp, simmap.tree=simmap.tree, alpha=c(solution[1,c(i,j)]), sigma.sq=c(solution[2,c(i,j)]), quiet=TRUE)$theta
 			tmp <- t(tmp)
-			thetas<-cbind(thetas,tmp[,1],tmp[,1]) 
+			tmp.mat <- matrix(0,2,k)
+			for(k in 1:k){
+				tmp.mat[,k] <- tmp[,1]
+			}
+			thetas <- cbind(thetas,tmp.mat)
 			count <- count + 1			
 		}else{
-			j=i+1
-			tmp <- OUwie.fixed(phy,data[,c(1,2,count)],model=model.tmp, alpha=c(solution[1,c(i,j)]), sigma.sq=c(solution[2,c(i,j)]), quiet=TRUE)$theta
-			thetas<-cbind(thetas,t(tmp)) 
+			j=(i+1):(i+k-1)
+			tmp <- OUwie.fixed(phy,data[,c(1,2,count)],model=model.tmp, simmap.tree=simmap.tree, alpha=c(solution[1,c(i,j)]), sigma.sq=c(solution[2,c(i,j)]), quiet=TRUE)$theta
+			thetas <- cbind(thetas,t(tmp)) 
 			count <- count + 1
 		}
 	}
@@ -490,17 +503,18 @@ print.OUwie.joint <- function(x, ...){
 		colnames(x$thetas) <- rep(levels(x$tot.states), x$ntraits)
 	}
 	if(x$simmap.tree==TRUE){
-		colnames(x$thetas) <- rep(c(colnames(x$phy$mapped.edge)),x$ntraits)
+		colnames(x$thetas) <- rep(c(colnames(x$phy$mapped.edge)), x$ntraits)
 	}
+	k = length(levels(x$tot.states))
 	count=1
-	for(i in seq(from = 1, by = 2, length.out = x$ntraits)){
-		j=i+1
+	for(i in seq(from = 1, by = k, length.out = x$ntraits)){
+		j=(i+1):(i+k-1)
 		cat(paste("Trait", count, sep=" "),"\n")
 		cat("\nRates\n")
-		print(param.est[,i:j])
+		print(param.est[,c(i,j)])
 		cat("\n")		
 		cat("Optima\n")
-		print(x$thetas[,i:j])
+		print(x$thetas[,c(i,j)])
 		cat("\n")
 		count<-count+1
 	}
@@ -550,4 +564,6 @@ print.OUwie.joint <- function(x, ...){
 #res1<-MultiTraitOUwie(tree, trait, model=c("OUMVA"), ntraits=3,allfree=FALSE)
 #res[15,]<-c(res1$loglik,res1$AICc,res1$solution[1,],res1$solution[2,],res1$theta[1,])
 #write.table(res, file="fleshy.multi.set", quote=FALSE, row.names=FALSE, sep="\t")
+
+
 

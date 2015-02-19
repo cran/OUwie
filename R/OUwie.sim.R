@@ -31,7 +31,8 @@ OUwie.sim <- function(phy, data=NULL, simmap.tree=FALSE, scaleHeight=FALSE, alph
 		phy$node.label=as.numeric(int.states)
 		tip.states<-factor(data[,1])
 		data[,1]<-as.numeric(tip.states)
-		k<-length(levels(int.states))
+		tot.states<-factor(c(phy$node.label,as.character(data[,1])))
+		k<-length(levels(tot.states))
 		
 		regime=matrix(rep(0,(n-1)*k), n-1, k)
 
@@ -47,7 +48,7 @@ OUwie.sim <- function(phy, data=NULL, simmap.tree=FALSE, scaleHeight=FALSE, alph
 		edges=edges[sort.list(edges[,3]),]
 
 		mm<-c(data[,1],int.state)
-		
+
 		regime <- matrix(0,nrow=length(mm),ncol=length(unique(mm)))
 		#Generates an indicator matrix from the regime vector
 		for (i in 1:length(mm)) {
@@ -58,7 +59,7 @@ OUwie.sim <- function(phy, data=NULL, simmap.tree=FALSE, scaleHeight=FALSE, alph
 		
 		#Resort the edge matrix so that it looks like the original matrix order
 		edges=edges[sort.list(edges[,1]),]
-		
+
 		oldregime=root.state
 		
 		alpha=alpha
@@ -85,6 +86,7 @@ OUwie.sim <- function(phy, data=NULL, simmap.tree=FALSE, scaleHeight=FALSE, alph
 				oldregime=oldregime
 			}	
 			newregime=which(edges[i,6:(k+5)]==1)
+
 			if(oldregime==newregime){
 				x[edges[i,3],]=x[edges[i,2],]*exp(-alpha[oldregime]*(newtime-oldtime))+(theta[oldregime])*(1-exp(-alpha[oldregime]*(newtime-oldtime)))+sigma[oldregime]*rnorm(1,0,1)*sqrt((1-exp(-2*alpha[oldregime]*(newtime-oldtime)))/(2*alpha[oldregime]))
 			}

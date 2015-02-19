@@ -5,8 +5,8 @@
 \usage{
 OUwie.joint(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV",
 "OUMVr","OUMA","OUMAr","OUMVA","OUMVAr"), ntraits, allfree=TRUE, 
-simmap.tree=FALSE, scaleHeight=FALSE, root.station=TRUE, 
-lb=0.000001, ub=1000, mserr="none", diagn=FALSE, quiet=FALSE)
+simmap.tree=FALSE, scaleHeight=FALSE, root.station=TRUE, mserr="none",
+diagn=FALSE, quiet=FALSE)
 }       
 \arguments{
 \item{phy}{a phylogenetic tree, in \code{ape} \dQuote{phylo} format and with internal nodes labeled denoting the ancestral selective regimes.}
@@ -17,8 +17,6 @@ lb=0.000001, ub=1000, mserr="none", diagn=FALSE, quiet=FALSE)
 \item{simmap.tree}{a logical indicating whether the input tree is in SIMMAP format. The default is \code{FALSE}.} 
 \item{scaleHeight}{a logical indicating whether the total tree height should be scaled to 1 (see Details). The default is \code{FALSE}.} 
 \item{root.station}{a logical indicating whether the starting state, \eqn{\theta_0}{theta_0}, should be estimated (see Details).} 
-\item{lb}{lower bound for the likelihood search. The default is \code{lb=0.000001}. Note that this value must be greater than zero.}
-\item{ub}{upper bound for the likelihood search. The default is \code{ub=1000}.}
 \item{mserr}{designates whether the data matrix contains measurement error for each species value ("known"). The default is "none".}
 \item{diagn}{a logical indicating whether the full diagnostic analysis should be carried out. The default is \code{FALSE}.}
 \item{quiet}{a logical indicating whether progress should be written to the screen. The default is \code{FALSE}.}
@@ -50,7 +48,6 @@ Possible models are the same as before: single-rate Brownian motion (\code{model
 }
 \examples{
 #data(tworegime)
-#pp <- OUwie(tree,trait,model=c("OUMV"),root.station=TRUE)
 
 #trait1 <- OUwie.sim(tree,trait, alpha=pp$solution[1,], 
 #sigma.sq=pp$solution[2,],theta=pp$theta[,1], theta0=pp$theta[1,1])

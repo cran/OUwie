@@ -3,9 +3,9 @@
 \title{Generalized Hansen models}
 \description{Fits generalized Ornstein-Uhlenbeck-based Hansen models of continuous characters evolving under discrete selective regimes.}
 \usage{
-OUwie(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"),
- simmap.tree=FALSE, scaleHeight=FALSE, root.station=TRUE, lb=0.000001, 
-ub=1000, clade=NULL, mserr="none", diagn=FALSE, quiet=FALSE, warn=TRUE)
+OUwie(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA",
+"TrendyM","TrendyMS"), simmap.tree=FALSE, scaleHeight=FALSE, root.station=TRUE,
+clade=NULL, mserr="none", diagn=FALSE, quiet=FALSE, warn=TRUE)
 }       
 \arguments{
 \item{phy}{a phylogenetic tree, in \code{ape} \dQuote{phylo} format and with internal nodes labeled denoting the ancestral selective regimes.}
@@ -14,8 +14,6 @@ ub=1000, clade=NULL, mserr="none", diagn=FALSE, quiet=FALSE, warn=TRUE)
 \item{simmap.tree}{a logical indicating whether the input tree is in SIMMAP format. The default is \code{FALSE}.} 
 \item{scaleHeight}{a logical indicating whether the total tree height should be scaled to 1 (see Details). The default is \code{FALSE}.} 
 \item{root.station}{a logical indicating whether the starting state, \eqn{\theta_0}{theta_0}, should be estimated (see Details).} 
-\item{lb}{lower bound for the likelihood search. The default is \code{lb=0.000001}. Note that this value must be greater than zero.}
-\item{ub}{upper bound for the likelihood search. The default is \code{ub=1000}.}
 \item{clade}{a list containing a pair of taxa whose MRCA is the clade of interest (see Details).}
 \item{mserr}{designates whether a fourth column in the data matrix contains measurement error for each species value ("known"). The measurement error is assumed to be the standard error of the species mean. The default is "none".}
 \item{diagn}{a logical indicating whether the full diagnostic analysis should be carried out. The default is \code{FALSE}.}

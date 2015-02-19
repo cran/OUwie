@@ -2,7 +2,7 @@
 
 #written by Jeremy M. Beaulieu
 
-OUwie.slice<-function(phy, data, model=c("BMS","OUM","OUMV","OUMA","OUMVA"), timeslices=c(NA), scaleHeight=FALSE, root.station=TRUE, lb=0.000001, ub=1000, mserr="none", diagn=FALSE, quiet=FALSE, warn=TRUE){
+OUwie.slice<-function(phy, data, model=c("BMS","OUM","OUMV","OUMA","OUMVA"), timeslices=c(NA), scaleHeight=FALSE, root.station=TRUE, mserr="none", diagn=FALSE, quiet=FALSE, warn=TRUE){
 	
 	#Makes sure the data is in the same order as the tip labels
 	if(mserr=="none" | mserr=="est"){
@@ -140,6 +140,7 @@ OUwie.slice<-function(phy, data, model=c("BMS","OUM","OUMV","OUMA","OUMVA"), tim
 	}
 	#Likelihood function for estimating model parameters
 	dev.slice<-function(p, index.mat, timeslices, mserr){
+		p = exp(p)
 		non.estimated.slices<-timeslices[which(!is.na(timeslices))]
 		timeslices[] <-c(p, 0)[Slices.vector]
 		timeslices[timeslices==0]<-non.estimated.slices
@@ -183,11 +184,13 @@ OUwie.slice<-function(phy, data, model=c("BMS","OUM","OUMV","OUMA","OUMVA"), tim
 		cat("Initializing...", "\n")
 	}
 	
+	lb = -20
+	ub = 20
 	lower = rep(lb, np)
 	upper = rep(ub, np)
 	#Update the bounds with estimated timeslices:
-	lower = c(lower, rep(0,length(which(is.na(timeslices)))))
-	upper = c(upper, rep(max(nodeHeights(phy)),length(which(is.na(timeslices)))))
+	lower = c(lower, log(rep(0,length(which(is.na(timeslices))))))
+	upper = c(upper, log(rep(max(nodeHeights(phy)),length(which(is.na(timeslices))))))
 	opts <- list("algorithm"="NLOPT_LN_SBPLX", "maxeval"="1000000", "ftol_rel"=.Machine$double.eps^0.5)
 
 	if(model == "OUM" | model == "OUMV" | model == "OUMA" | model == "OUMVA"){
@@ -195,7 +198,7 @@ OUwie.slice<-function(phy, data, model=c("BMS","OUM","OUMV","OUMA","OUMVA"), tim
 		data.tmp <- data.frame(Genus_species=phy$tip.label,reg=rep(1,length(data[,1])),contT=data[,2])
 		phy.tmp <- phy
 		phy.tmp$node.label <- sample(c(1:k), phy.tmp$Nnode, replace=T)
-		init <- OUwie(phy.tmp, data.tmp, model="OU1", simmap.tree=FALSE, scaleHeight=scaleHeight, root.station=TRUE, lb=0.000001, ub=1000, mserr="none", diagn=FALSE, quiet=TRUE)
+		init <- OUwie(phy.tmp, data.tmp, model="OU1", simmap.tree=FALSE, scaleHeight=scaleHeight, root.station=TRUE, mserr="none", diagn=FALSE, quiet=TRUE)
 		init.ip <- c(init$solution[1,1],init$solution[2,1])
 
 		if(model=="OUMV" | model=="OUMA" | model=="OUM"){
@@ -216,7 +219,7 @@ OUwie.slice<-function(phy, data, model=c("BMS","OUM","OUMV","OUMA","OUMVA"), tim
 		if(quiet==FALSE){
 			cat("Finished. Begin thorough search...", "\n")
 		}
-		out = nloptr(x0=ip, eval_f=dev.slice, lb=lower, ub=upper, opts=opts, index.mat=index.mat, timeslices=timeslices, mserr=mserr)
+		out = nloptr(x0=log(ip), eval_f=dev.slice, lb=lower, ub=upper, opts=opts, index.mat=index.mat, timeslices=timeslices, mserr=mserr)
 	}
 	else{
 		if(scaleHeight==TRUE){
@@ -240,11 +243,11 @@ OUwie.slice<-function(phy, data, model=c("BMS","OUM","OUMV","OUMA","OUMVA"), tim
 		if(quiet==FALSE){
 			cat("Finished. Begin thorough search...", "\n")
 		}
-		out = nloptr(x0=ip, eval_f=dev.slice, lb=lower, ub=upper, opts=opts, index.mat=index.mat, timeslices=timeslices, mserr=mserr)
+		out = nloptr(x0=log(ip), eval_f=dev.slice, lb=lower, ub=upper, opts=opts, index.mat=index.mat, timeslices=timeslices, mserr=mserr)
 	}
 	
 	loglik <- -out$objective
-	
+	out$solution = exp(out$solution)
 	#Takes estimated parameters from dev and calculates theta for each regime:
 	dev.theta.slice<-function(p, index.mat, timeslices=timeslices, mserr=mserr){
 		non.estimated.slices<-timeslices[which(!is.na(timeslices))]

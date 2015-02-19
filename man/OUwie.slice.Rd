@@ -4,8 +4,8 @@
 \description{Fits generalized Ornstein-Uhlenbeck-based Hansen models of continuous characters before and after time slices.}
 \usage{
 OUwie.slice(phy, data, model=c("BMS","OUM","OUMV","OUMA","OUMVA"),
- timeslices=c(NA), scaleHeight=FALSE, root.station=TRUE, lb=0.000001, 
-ub=1000, mserr="none", diagn=FALSE, quiet=FALSE, warn=TRUE)
+ timeslices=c(NA), scaleHeight=FALSE, root.station=TRUE, mserr="none",
+ diagn=FALSE, quiet=FALSE, warn=TRUE)
 }       
 \arguments{
 \item{phy}{a phylogenetic tree, in \code{ape} \dQuote{phylo} format and with internal nodes labeled denoting the ancestral selective regimes.}
@@ -14,8 +14,6 @@ ub=1000, mserr="none", diagn=FALSE, quiet=FALSE, warn=TRUE)
 \item{timeslices}{specifies the value and number fixed timeslices, timeslices to be estimated, or both (see Details).}
 \item{scaleHeight}{a logical indicating whether the total tree height should be scaled to 1 (see Details). The default is \code{FALSE}.} 
 \item{root.station}{a logical indicating whether the starting state, \eqn{\theta_0}{theta_0}, should be estimated (see Details).} 
-\item{lb}{lower bound for the likelihood search. The default is \code{lb=0.000001}. Note that this value must be greater than zero.}
-\item{ub}{upper bound for the likelihood search. The default is \code{ub=1000}.}
 \item{mserr}{designates whether a fourth column in the data matrix contains measurement error for each species value ("known"). The measurement error is assumed to be the standard error of the species mean. The default is "none".}
 \item{diagn}{a logical indicating whether the full diagnostic analysis should be carried out. The default is \code{FALSE}.}
 \item{quiet}{a logical indicating whether progress should be written to the screen. The default is \code{FALSE}.}
