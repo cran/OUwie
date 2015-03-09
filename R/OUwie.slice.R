@@ -291,7 +291,7 @@ OUwie.slice<-function(phy, data, model=c("BMS","OUM","OUMV","OUMA","OUMVA"), tim
 	tot.states<-factor(colnames(phy.sliced$mapped.edge))
 	#Calculates the Hessian for use in calculating standard errors and whether the maximum likelihood solution was found
 	if(diagn==TRUE){
-		h <- hessian(x=out$solution, func=dev.slice, index.mat=index.mat, mserr=mserr)
+		h <- hessian(x=out$solution, func=dev.slice, index.mat=index.mat, timeslices=timeslices, mserr=mserr)
 		#Using the corpcor package here to overcome possible NAs with calculating the SE
 		solution <- matrix(out$solution[index.mat], dim(index.mat))
 		solution.se <- matrix(sqrt(diag(pseudoinverse(h)))[index.mat], dim(index.mat))
