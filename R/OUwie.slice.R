@@ -198,7 +198,7 @@ OUwie.slice<-function(phy, data, model=c("BMS","OUM","OUMV","OUMA","OUMVA"), tim
 		data.tmp <- data.frame(Genus_species=phy$tip.label,reg=rep(1,length(data[,1])),contT=data[,2])
 		phy.tmp <- phy
 		phy.tmp$node.label <- sample(c(1:k), phy.tmp$Nnode, replace=T)
-		init <- OUwie(phy.tmp, data.tmp, model="OU1", simmap.tree=FALSE, scaleHeight=scaleHeight, root.station=TRUE, mserr="none", diagn=FALSE, quiet=TRUE)
+		init <- OUwie(phy.tmp, data.tmp, model="OU1", simmap.tree=FALSE, scaleHeight=scaleHeight, root.station=root.station, mserr=mserr, diagn=FALSE, quiet=TRUE)
 		init.ip <- c(init$solution[1,1],init$solution[2,1])
 
 		if(model=="OUMV" | model=="OUMA" | model=="OUM"){
@@ -401,7 +401,6 @@ print.OUwie.slice<-function(x, ...){
 		}
 		if (x$root.station == FALSE){
 			if (x$model == "OUM"| x$model == "OUMV"| x$model == "OUMA" | x$model == "OUMVA"){ 
-				print(x$theta)
 				param.est<- x$solution
 				theta.mat<-matrix(t(x$theta), 2, length(levels(x$tot.states))+1)
 				rownames(theta.mat)<-c("estimate", "se")

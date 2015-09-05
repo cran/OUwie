@@ -88,7 +88,6 @@ varcov.ou<-function(phy, edges, Rate.mat, root.state, simmap.tree=FALSE, scaleHe
 	vcv1<-mat.gen(phy,n.cov1,pp)
 	vcv2<-mat.gen(phy,n.cov2,pp)
 	vcv<-exp(-2*diag(vcv1))*vcv2
-	
 	vcv
 	
 }
