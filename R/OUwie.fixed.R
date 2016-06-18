@@ -4,23 +4,38 @@
 
 #Allows the user to calculate the likelihood given a specified set of parameter values. 
 
-OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"),simmap.tree=FALSE,scaleHeight=FALSE,root.station=TRUE, alpha=NULL, sigma.sq=NULL, theta=NULL, clade=NULL, mserr="none", quiet=FALSE){
+OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"),simmap.tree=FALSE, root.age=NULL, scaleHeight=FALSE,root.station=TRUE, alpha=NULL, sigma.sq=NULL, theta=NULL, clade=NULL, mserr="none", quiet=FALSE){
 
-	#Makes sure the data is in the same order as the tip labels
-	if(mserr=="none" | mserr=="est"){
-		data<-data.frame(data[,2], data[,3], row.names=data[,1])
-		data<-data[phy$tip.label,]
-	}
-	if(mserr=="known"){
-		if(!dim(data)[2]==4){
-			cat("You specified measurement error should be incorporated, but this information is missing:\n")
-		}
-		else{
-			data<-data.frame(data[,2], data[,3], data[,4], row.names=data[,1])
-			data<-data[phy$tip.label,]
-		}
-	}
-	#Values to be used throughout
+    if(is.factor(data[,3])==TRUE){
+        stop("Check the format of the data column. It's reading as a factor.", .call=FALSE)
+    }
+
+    if(is.null(root.age)){
+        if(any(branching.times(phy)<0)){
+            stop("Looks like your tree is producing negative branching times. Must input known root age of tree.", .call=FALSE)
+        }
+    }
+
+    #Makes sure the data is in the same order as the tip labels
+    if(mserr=="none" | mserr=="est"){
+        data<-data.frame(data[,2], data[,3], row.names=data[,1])
+        data<-data[phy$tip.label,]
+    }
+    if(mserr=="known"){
+        if(!dim(data)[2]==4){
+            stop("You specified measurement error should be incorporated, but this information is missing", .call=FALSE)
+        }
+        else{
+            if(is.factor(data[,4]) == TRUE){
+                stop("Check the format of the measurement error column. It's reading as a factor.", .call=FALSE)
+            }else{
+                data<-data.frame(data[,2], data[,3], data[,4], row.names=data[,1])
+                data<-data[phy$tip.label,]
+            }
+        }
+    }
+
+    #Values to be used throughout
 	n=max(phy$edge[,1])
 	ntips=length(phy$tip.label)
 	#Will label the clade of interest if the user so chooses:
@@ -54,10 +69,10 @@ OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","O
 		#Obtains the state at the root
 		root.state=which(colnames(phy$mapped.edge)==names(phy$maps[[1]][1]))
 		##Begins the construction of the edges matrix -- similar to the ouch format##
-		edges=cbind(c(1:(n-1)),phy$edge,nodeHeights(phy))
+		edges=cbind(c(1:(n-1)),phy$edge,MakeAgeTable(phy, root.age=root.age))
 
 		if(scaleHeight==TRUE){
-			edges[,4:5]<-edges[,4:5]/max(nodeHeights(phy))
+			edges[,4:5]<-edges[,4:5]/max(MakeAgeTable(phy, root.age=root.age))
 		}
 		
 		edges=edges[sort.list(edges[,3]),]
@@ -91,10 +106,10 @@ OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","O
 				#Obtain root state -- for both models assume the root state to be 1 since no other state is used even if provided in the tree
 				root.state<-1
 				#New tree matrix to be used for subsetting regimes
-				edges=cbind(c(1:(n-1)),phy$edge,nodeHeights(phy))
+				edges=cbind(c(1:(n-1)),phy$edge,MakeAgeTable(phy, root.age=root.age))
 			
 				if(scaleHeight==TRUE){
-					edges[,4:5]<-edges[,4:5]/max(nodeHeights(phy))
+					edges[,4:5]<-edges[,4:5]/max(MakeAgeTable(phy, root.age=root.age))
 				}
 				
 				edges=edges[sort.list(edges[,3]),]
@@ -112,10 +127,10 @@ OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","O
 				root.state<-phy$node.label[1]
 				int.state<-phy$node.label[-1]
 				#New tree matrix to be used for subsetting regimes
-				edges=cbind(c(1:(n-1)),phy$edge,nodeHeights(phy))
+				edges=cbind(c(1:(n-1)),phy$edge,MakeAgeTable(phy, root.age=root.age))
 			
 				if(scaleHeight==TRUE){
-					edges[,4:5]<-edges[,4:5]/max(nodeHeights(phy))
+					edges[,4:5]<-edges[,4:5]/max(MakeAgeTable(phy, root.age=root.age))
 				}
 				
 				edges=edges[sort.list(edges[,3]),]
@@ -152,13 +167,13 @@ OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","O
 			index<-matrix(TRUE,2,k)
 			Rate.mat[1,1:k]<-1e-10
 			Rate.mat[2,1:k]<-sigma.sq
-#			if(root.station==TRUE){
-#				param.count<-np+k
-#			}
-#			if(root.station==FALSE){
-			param.count<-np+1
-#			}			
-			bool=FALSE
+			if(root.station==TRUE){
+				param.count<-np+k
+			}
+            if(root.station==FALSE){
+                param.count<-np+1
+            }
+			bool=root.station
 		}
 		if (model == "OU1"){
 			np=2
@@ -231,18 +246,17 @@ OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","O
 	#Likelihood function for estimating model parameters
 	dev<-function(){
 		N<-length(x[,1])
-		V<-varcov.ou(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, scaleHeight=scaleHeight)
-		W<-weight.mat(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, scaleHeight=scaleHeight,assume.station=bool)
+		V<-varcov.ou(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, root.age=root.age, scaleHeight=scaleHeight)
+		W<-weight.mat(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, root.age=root.age, scaleHeight=scaleHeight, assume.station=bool)
 		if(mserr=="known"){
 			diag(V)<-diag(V)+(data[,3]^2)
 		}
 #		if(mserr=="est"){
 #			diag(V)<-diag(V)+p[length(p)]
 #		}
-		
 		if(is.null(theta)){
-			theta<-pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)%*%t(W)%*%pseudoinverse(V)%*%x
-			se<-sqrt(diag(pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)))
+            theta<-pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)%*%t(W)%*%pseudoinverse(V)%*%x
+            se<-sqrt(diag(pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)))
 		}
 		else{
 			theta=theta
@@ -268,7 +282,7 @@ OUwie.fixed<-function(phy,data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","O
 	fixed.fit <- dev()
 	loglik<- -fixed.fit[[1]]
 	
-	obj = list(loglik = loglik, AIC = -2*loglik+2*param.count,AICc=-2*loglik+(2*param.count*(ntips/(ntips-param.count-1))),model=model,solution=Rate.mat, theta=fixed.fit[[2]], tot.states=tot.states, simmap.tree=simmap.tree,data=data, phy=phy, root.station=root.station, res=fixed.fit[[3]]) 
+	obj = list(loglik = loglik, AIC = -2*loglik+2*param.count,AICc=-2*loglik+(2*param.count*(ntips/(ntips-param.count-1))),model=model, param.count=param.count, solution=Rate.mat, theta=fixed.fit[[2]], tot.states=tot.states, simmap.tree=simmap.tree, root.age=root.age, data=data, phy=phy, root.station=root.station, res=fixed.fit[[3]])
 	class(obj)<-"OUwie.fixed"		
 	return(obj)
 }
@@ -278,7 +292,7 @@ print.OUwie.fixed<-function(x, ...){
 	
 	ntips=Ntip(x$phy)
 	output<-data.frame(x$loglik,x$AIC,x$AICc,x$model,ntips,row.names="")
-	names(output)<-c("-lnL","AIC","AICc","model","ntax")
+	names(output)<-c("lnL","AIC","AICc","model","ntax")
 	cat("\nFit\n")
 	print(output)
 	cat("\n")
@@ -287,12 +301,12 @@ print.OUwie.fixed<-function(x, ...){
 		if (x$model == "BM1" | x$model == "BMS"){
 			param.est <- x$solution
 			rownames(param.est)<-c("alpha","sigma.sq")
-#			if(x$root.station==FALSE){
-			theta.mat <- matrix(t(x$theta[1,]), 2, length(levels(x$tot.states)))
-#			}
-#			else{
-#				theta.mat<-matrix(t(x$theta), 2, length(levels(x$tot.states)))
-#			}
+            if(x$root.station==FALSE){
+                theta.mat <- matrix(t(x$theta[1,]), 2, length(levels(x$tot.states)))
+            }
+            else{
+                theta.mat<-matrix(t(x$theta), 2, length(levels(x$tot.states)))
+            }
 			colnames(theta.mat)<-c("estimate", "se")
 			if(x$simmap.tree==FALSE){
 				colnames(param.est) <- colnames(theta.mat) <- levels(x$tot.states)

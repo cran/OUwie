@@ -2,33 +2,57 @@
 
 #written by Jeremy M. Beaulieu
 
-OUwie.slice<-function(phy, data, model=c("BMS","OUM","OUMV","OUMA","OUMVA"), timeslices=c(NA), scaleHeight=FALSE, root.station=TRUE, mserr="none", slice.lower.bound=NULL, diagn=FALSE, quiet=FALSE, warn=TRUE){
+OUwie.slice<-function(phy, data, model=c("BMS","OUM","OUMV","OUMA","OUMVA"), timeslices=c(NA), root.age=NULL, scaleHeight=FALSE, root.station=TRUE, mserr="none", slice.lower.bound=NULL, starting.vals=NULL, diagn=FALSE, quiet=FALSE, warn=TRUE){
 	
+    if(is.factor(data[,2])==TRUE){
+        stop("Check the format of the data column. It's reading as a factor.", .call=FALSE)
+    }
+
+    if(is.null(root.age)){
+        if(any(branching.times(phy)<0)){
+            stop("Looks like your tree is producing negative branching times. Must input known root age of tree.", .call=FALSE)
+        }
+    }
+
+    if(!is.null(starting.vals[1])){
+        if(model == "OUM" | model == "OUMV" | model == "OUMA" | model == "OUMVA"){
+            if(length(starting.vals)<2){
+                stop("You only supplied one starting value. For OU models you need to supply two", .call=FALSE)
+            }
+        }
+    }
+
 	#Makes sure the data is in the same order as the tip labels
 	if(mserr=="none" | mserr=="est"){
 		data<-data.frame(data[,2], data[,2], row.names=data[,1])
 		data<-data[phy$tip.label,]
 	}
 	if(mserr=="known"){
-		if(!dim(data)[2]==4){
-			stop("You specified measurement error should be incorporated, but this information is missing")
-		}
-		else{
-			data<-data.frame(data[,2], data[,3], data[,4], row.names=data[,1])
-			data<-data[phy$tip.label,]
-		}
+        if(!dim(data)[2]==3){
+            stop("You specified measurement error should be incorporated, but this information is missing.", .call=FALSE)
+        }
+        else{
+            if(is.factor(data[,3]) == TRUE){
+                stop("Check the format of the measurement error column. It's reading as a factor.", .call=FALSE)
+            }else{
+                data <- data.frame(data[,2], data[,3], row.names=data[,1])
+                data <- data[phy$tip.label,]
+            }
+        }
 	}
+    
 	simmap.tree<-TRUE
 	#How many regimes and timeslices from the input
 	if(any(timeslices>0, na.rm=T) | any(is.na(timeslices))){
 		k<-length(timeslices)+1
 	}
 	else{
-		stop("You have not specified a timeslice")
+		stop("You have not specified a timeslice", .call=FALSE)
 	}
-	max.height <- max(nodeHeights(phy))
+	max.height <- max(MakeAgeTable(phy, root.age=root.age))
 	timeslices <- max.height - timeslices
 	timeslices <- c(0,timeslices)
+
 	#Values to be used throughout
 	n=max(phy$edge[,1])
 	ntips=length(phy$tip.label)
@@ -38,7 +62,7 @@ OUwie.slice<-function(phy, data, model=c("BMS","OUM","OUMV","OUMA","OUMVA"), tim
 	#Obtains the state at the root
 	root.state=1
 	##Begins the construction of the edges matrix -- similar to the ouch format##
-	edges=cbind(c(1:(n-1)),phy$edge,nodeHeights(phy))
+	edges=cbind(c(1:(n-1)),phy$edge,MakeAgeTable(phy, root.age=root.age))
 	
 	if(scaleHeight==TRUE){
 		edges[,4:5]<-edges[,4:5]/max.height
@@ -47,7 +71,8 @@ OUwie.slice<-function(phy, data, model=c("BMS","OUM","OUMV","OUMA","OUMVA"), tim
 	
 	#Resort the edge matrix so that it looks like the original matrix order
 	edges=edges[sort.list(edges[,1]),]
-	x<-as.matrix(data[,2])
+	x <- as.matrix(data[,1])
+	
 	#Matches the model with the appropriate parameter matrix structure
 	if (is.character(model)) {
 		index.mat<-matrix(0,2,k)
@@ -141,21 +166,21 @@ OUwie.slice<-function(phy, data, model=c("BMS","OUM","OUMV","OUMA","OUMVA"), tim
 	#Likelihood function for estimating model parameters
 	dev.slice<-function(p, index.mat, timeslices, mserr){
 		p = exp(p)
-		non.estimated.slices<-timeslices[which(!is.na(timeslices))]
+		non.estimated.slices <- timeslices[which(!is.na(timeslices))]
 		timeslices[] <-c(p, 0)[Slices.vector]
-		timeslices[timeslices==0]<-non.estimated.slices
-		timeslices<-timeslices[order(timeslices, decreasing=FALSE)]
+		timeslices[timeslices==0] <- non.estimated.slices
+		timeslices <- timeslices[order(timeslices, decreasing=FALSE)]
 		if(scaleHeight==TRUE){
 			timeslices = timeslices/max.height
 		}
 		phy.sliced<-make.era.map(phy,timeslices)
 		Rate.mat[] <- c(p, 1e-12)[index.mat]
 		N<-length(x[,1])
-		V<-varcov.ou(phy.sliced, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, scaleHeight=scaleHeight)
-		W<-weight.mat(phy.sliced, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, scaleHeight=scaleHeight, assume.station=bool)
+		V<-varcov.ou(phy.sliced, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, root.age=root.age, scaleHeight=scaleHeight)
+		W<-weight.mat(phy.sliced, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, root.age=root.age, scaleHeight=scaleHeight, assume.station=bool)
 		if (any(is.nan(diag(V))) || any(is.infinite(diag(V)))) return(10000000)		
 		if(mserr=="known"){
-			diag(V)<-diag(V)+data[,3]
+			diag(V)<-diag(V) + (data[,2]^2)
 		}
 		if(mserr=="est"){
 			diag(V)<-diag(V)+p[length(p)]
@@ -192,16 +217,23 @@ OUwie.slice<-function(phy, data, model=c("BMS","OUM","OUMV","OUMA","OUMVA"), tim
 	upper = rep(ub, np)
 	#Update the bounds with estimated timeslices:
 	lower = c(lower, rep(-21,length(which(is.na(timeslices)))))
-	upper = c(upper, log(rep(max(nodeHeights(phy))-slice.lower.bound,length(which(is.na(timeslices))))))
+	upper = c(upper, log(rep(max(MakeAgeTable(phy, root.age=root.age))-slice.lower.bound,length(which(is.na(timeslices))))))
 	opts <- list("algorithm"="NLOPT_LN_SBPLX", "maxeval"="1000000", "ftol_rel"=.Machine$double.eps^0.5)
 	if(model == "OUM" | model == "OUMV" | model == "OUMA" | model == "OUMVA"){
 		#Need to construct a dataset so that we can run OUwie to get starting values:
-		data.tmp <- data.frame(Genus_species=phy$tip.label,reg=rep(1,length(data[,1])),contT=data[,2])
+        if(mserr == "known"){
+            data.tmp <- data.frame(Genus_species=phy$tip.label,reg=rep(1,length(data[,1])),contT=data[,1], mserr=data[,2])
+        }else{
+            data.tmp <- data.frame(Genus_species=phy$tip.label,reg=rep(1,length(data[,1])),contT=data[,1])
+        }
 		phy.tmp <- phy
 		phy.tmp$node.label <- sample(c(1:k), phy.tmp$Nnode, replace=T)
-		init <- OUwie(phy.tmp, data.tmp, model="OU1", simmap.tree=FALSE, scaleHeight=scaleHeight, root.station=root.station, mserr=mserr, diagn=FALSE, quiet=TRUE)
-		init.ip <- c(init$solution[1,1],init$solution[2,1])
-
+        if(is.null(starting.vals)){
+            init <- OUwie(phy.tmp, data.tmp, model="OU1", simmap.tree=FALSE, root.age=root.age, scaleHeight=scaleHeight, root.station=root.station, mserr=mserr, diagn=FALSE, quiet=TRUE)
+            init.ip <- c(init$solution[1,1],init$solution[2,1])
+        }else{
+            init.ip <- starting.vals
+        }
 		if(model=="OUMV" | model=="OUMA" | model=="OUM"){
 			ip<-c(rep(init.ip[1],length(unique(index.mat[1,]))),rep(init.ip[2],length(unique(index.mat[2,]))))
 		}
@@ -215,7 +247,7 @@ OUwie.slice<-function(phy, data, model=c("BMS","OUM","OUMV","OUMA","OUMVA"), tim
 			upper = c(upper,ub)
 		}
 		if(any(is.na(timeslices))){
-			ip <- c(ip, max(nodeHeights(phy))/2)
+			ip <- c(ip, max(MakeAgeTable(phy, root.age=root.age))/2)
 		}
 		if(quiet==FALSE){
 			cat("Finished. Begin thorough search...", "\n")
@@ -229,9 +261,16 @@ OUwie.slice<-function(phy, data, model=c("BMS","OUM","OUMV","OUMA","OUMVA"), tim
 		}		
 		#Starting values follow from phytools:
 		C.mat<-vcv.phylo(phy)
-		a<-as.numeric(colSums(solve(C.mat))%*%x/sum(solve(C.mat)))
-		A<-matrix(rep(a,nrow(x)),nrow(x),ncol(x), byrow=TRUE)
-		sig<-as.numeric(t(x-A)%*%solve(C.mat)%*%(x-A)/n)
+        if(mserr=="known"){
+            diag(C.mat)<-diag(C.mat) + (data[,2]^2)
+        }
+        if(is.null(starting.vals)){
+            a <- as.numeric(colSums(solve(C.mat))%*%x/sum(solve(C.mat)))
+            A <- matrix(rep(a,nrow(x)),nrow(x),ncol(x), byrow=TRUE)
+            sig <- as.numeric(t(x-A)%*%solve(C.mat)%*%(x-A)/n)
+        }else{
+            sig <- starting.vals
+        }
 		ip=rep(sig,k)
 		if(mserr=="est"){
 			ip<-c(ip,0)
@@ -239,7 +278,7 @@ OUwie.slice<-function(phy, data, model=c("BMS","OUM","OUMV","OUMA","OUMVA"), tim
 			upper = c(upper,10)
 		}
 		if(any(is.na(timeslices))){
-			ip <- c(ip, max(nodeHeights(phy))/2)
+			ip <- c(ip, max(MakeAgeTable(phy, root.age=root.age))/2)
 		}
 		if(quiet==FALSE){
 			cat("Finished. Begin thorough search...", "\n")
@@ -259,11 +298,11 @@ OUwie.slice<-function(phy, data, model=c("BMS","OUM","OUMV","OUMA","OUMVA"), tim
 		tmp<-NULL
 		Rate.mat[] <- c(p, 1e-10)[index.mat]
 		N<-length(x[,1])
-		V<-varcov.ou(phy.sliced, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, scaleHeight=scaleHeight)
-		W<-weight.mat(phy.sliced, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, scaleHeight=scaleHeight, assume.station=bool)
+		V<-varcov.ou(phy.sliced, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, root.age=root.age, scaleHeight=scaleHeight)
+		W<-weight.mat(phy.sliced, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, root.age=root.age, scaleHeight=scaleHeight, assume.station=bool)
 		
 		if(mserr=="known"){
-			diag(V)<-diag(V)+data[,3]
+			diag(V)<-diag(V)+(data[,2]^2)
 		}
 		if(mserr=="est"){
 			diag(V)<-diag(V)+p[length(p)]
@@ -283,6 +322,9 @@ OUwie.slice<-function(phy, data, model=c("BMS","OUM","OUMV","OUMA","OUMVA"), tim
 	if(quiet==FALSE){
 		cat("Finished. Summarizing results.", "\n")	
 	}
+    if(any(is.na(timeslices))){
+        param.count <- param.count + sum(is.na(timeslices))
+    }
 	theta <- dev.theta.slice(out$solution, index.mat, timeslices, mserr)
 	non.estimated.slices<-timeslices[which(!is.na(timeslices))]
 	timeslices[] <- c(out$solution, 0)[Slices.vector]
@@ -290,6 +332,7 @@ OUwie.slice<-function(phy, data, model=c("BMS","OUM","OUMV","OUMA","OUMVA"), tim
 	timeslices <- timeslices[order(timeslices, decreasing=FALSE)]
 	phy.sliced<-make.era.map(phy,timeslices)
 	tot.states<-factor(colnames(phy.sliced$mapped.edge))
+	
 	#Calculates the Hessian for use in calculating standard errors and whether the maximum likelihood solution was found
 	if(diagn==TRUE){
 		h <- hessian(x=out$solution, func=dev.slice, index.mat=index.mat, timeslices=timeslices, mserr=mserr)
@@ -315,7 +358,7 @@ OUwie.slice<-function(phy, data, model=c("BMS","OUM","OUMV","OUMA","OUMVA"), tim
 		else{
 			mserr.est<-NULL
 		}	
-		obj = list(loglik = loglik, AIC = -2*loglik+2*param.count,AICc=-2*loglik+(2*param.count*(ntips/(ntips-param.count-1))),model=model,solution=solution, theta=theta$theta.est, solution.se=solution.se, tot.states=tot.states, index.mat=index.mat, simmap.tree=simmap.tree, opts=opts, data=data, phy=phy.sliced, root.station=root.station, lb=lower, ub=upper, iterations=out$iterations, res=theta$res, eigval=eigval, eigvect=eigvect) 
+		obj = list(loglik = loglik, AIC = -2*loglik+2*param.count,AICc=-2*loglik+(2*param.count*(ntips/(ntips-param.count-1))),model=model,solution=solution, theta=theta$theta.est, solution.se=solution.se, timeslices=timeslices, tot.states=tot.states, index.mat=index.mat, simmap.tree=simmap.tree, root.age=root.age, opts=opts, data=data, phy=phy.sliced, root.station=root.station, starting.vals=starting.vals, lb=lower, ub=upper, iterations=out$iterations, res=theta$res, eigval=eigval, eigvect=eigvect)
 	}
 	if(diagn==FALSE){
 		solution <- matrix(out$solution[index.mat], dim(index.mat))
@@ -333,17 +376,18 @@ OUwie.slice<-function(phy, data, model=c("BMS","OUM","OUMV","OUMA","OUMVA"), tim
 		else{
 			mserr.est<-NULL
 		}
-		obj = list(loglik = loglik, AIC = -2*loglik+2*param.count,AICc=-2*loglik+(2*param.count*(ntips/(ntips-param.count-1))),model=model,solution=solution, theta=theta$theta.est, timeslices=timeslices, tot.states=tot.states, index.mat=index.mat, simmap.tree=simmap.tree, opts=opts, data=data, phy=phy.sliced, root.station=root.station, lb=lower, ub=upper, iterations=out$iterations, res=theta$res) 
+		obj = list(loglik = loglik, AIC = -2*loglik+2*param.count,AICc=-2*loglik+(2*param.count*(ntips/(ntips-param.count-1))), model=model, param.count=param.count, solution=solution, theta=theta$theta.est, timeslices=timeslices, tot.states=tot.states, index.mat=index.mat, simmap.tree=simmap.tree, root.age=root.age, opts=opts, data=data, phy=phy.sliced, root.station=root.station, starting.vals=starting.vals, lb=lower, ub=upper, iterations=out$iterations, res=theta$res)
 	}
 	class(obj)<-"OUwie.slice"		
 	return(obj)
 }
 
+
 print.OUwie.slice<-function(x, ...){
 	
 	ntips=Ntip(x$phy)
 	output<-data.frame(x$loglik,x$AIC,x$AICc,x$model,ntips, row.names="")
-	names(output)<-c("-lnL","AIC","AICc","model","ntax")
+	names(output)<-c("lnL","AIC","AICc","model","ntax")
 	cat("\nFit\n")
 	print(output)
 	cat("\n")
@@ -365,7 +409,7 @@ print.OUwie.slice<-function(x, ...){
 				colnames(theta.mat) <- c(colnames(x$phy$mapped.edge))
 			}
 			cat("Time slices\n")
-			time.mat<-matrix(max(nodeHeights(x$phy))-x$timeslices,1,length(x$timeslices))
+			time.mat<-matrix(max(MakeAgeTable(x$phy, root.age=x$root.age))-x$timeslices,1,length(x$timeslices))
 			colnames(time.mat) <- c(colnames(x$phy$mapped.edge))
 			rownames(time.mat) <- "interval start"
 			print(time.mat)
@@ -388,7 +432,7 @@ print.OUwie.slice<-function(x, ...){
 					colnames(theta.mat) <- c(colnames(x$phy$mapped.edge))
 				}
 				cat("Time slices\n")
-				time.mat<-matrix(max(nodeHeights(x$phy))-x$timeslices,1,length(x$timeslices))
+				time.mat<-matrix(max(MakeAgeTable(x$phy, root.age=x$root.age))-x$timeslices,1,length(x$timeslices))
 				colnames(time.mat) <- c(colnames(x$phy$mapped.edge))
 				rownames(time.mat) <- "interval start"
 				print(time.mat)
@@ -412,7 +456,7 @@ print.OUwie.slice<-function(x, ...){
 					colnames(theta.mat)<-c("Root", colnames(x$phy$mapped.edge))
 				}
 				cat("Time slices\n")
-				time.mat<-matrix(max(nodeHeights(x$phy))-x$timeslices,1,2)
+				time.mat<-matrix(max(MakeAgeTable(x$phy, root.age=x$root.age))-x$timeslices,1,2)
 				colnames(time.mat) <- c(colnames(x$phy$mapped.edge))
 				rownames(time.mat) <- "interval start"
 				print(time.mat)
