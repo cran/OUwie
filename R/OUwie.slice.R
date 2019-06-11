@@ -4,6 +4,10 @@
 
 OUwie.slice<-function(phy, data, model=c("BMS","OUM","OUMV","OUMA","OUMVA"), timeslices=c(NA), root.age=NULL, scaleHeight=FALSE, root.station=TRUE, mserr="none", slice.lower.bound=NULL, starting.vals=NULL, diagn=FALSE, quiet=FALSE, warn=TRUE){
 	
+    if(model=="BMS" & root.station==TRUE){
+        warning("By setting root.station=TRUE, you have specified the group means model of Thomas et al. 2006", call.=FALSE, immediate.=TRUE)
+    }
+
     if(is.factor(data[,2])==TRUE){
         stop("Check the format of the data column. It's reading as a factor.", .call=FALSE)
     }
@@ -195,9 +199,9 @@ OUwie.slice<-function(phy, data, model=c("BMS","OUM","OUMV","OUMA","OUMVA"), tim
 		#However, sometimes there are underflow issues so I toggle between the two approaches:
 		if(!is.finite(DET)){
 			DET<-determinant(V, logarithm=TRUE)
-			logl<--.5*(t(W%*%theta-x)%*%pseudoinverse(V)%*%(W%*%theta-x))-.5*as.numeric(DET$modulus)-.5*(N*log(2*pi))
+			logl<--.5*(t(x-W%*%theta)%*%pseudoinverse(V)%*%(x-W%*%theta))-.5*as.numeric(DET$modulus)-.5*(N*log(2*pi))
 		}else{
-			logl<--.5*(t(W%*%theta-x)%*%pseudoinverse(V)%*%(W%*%theta-x))-.5*as.numeric(DET)-.5*(N*log(2*pi))
+			logl<--.5*(t(x-W%*%theta)%*%pseudoinverse(V)%*%(x-W%*%theta))-.5*as.numeric(DET)-.5*(N*log(2*pi))
 		}
 		if(!is.finite(logl)){
 			return(10000000)
