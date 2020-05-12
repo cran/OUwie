@@ -4,8 +4,6 @@
 
 #Allows the user to calculate the likelihood given a specified set of parameter values while estimating the states at internal nodes. Assumes you have estimated the paramters already using OUwie
 
-## NOTE THIS IS NOT WORKING YET.
-
 # Idea is to take a tree, add tips at each node, add tips to the data (including figuring out regimes), and optimize the data for these made up tips. Take in OUwie object
 
 attach.stub.taxon <- function(node, phy, tip.name=NULL) {
@@ -64,11 +62,11 @@ anc.likelihood <- function(x, fitted.OUwie.object) {
     traits <- fitted.OUwie.object$data
     traits[grepl("node_", traits[,1]),3] <- x
     #model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"),simmap.tree=FALSE, root.age=NULL, scaleHeight=FALSE,root.station=TRUE, alpha=NULL, sigma.sq=NULL, theta=NULL, clade=NULL, mserr="none", quiet=FALSE)
-    return(-1*OUwie.fixed(phy=fitted.OUwie.object$phy,data=traits, model=fitted.OUwie.object$model, simmap.tree=fitted.OUwie.object$simmap.tree, root.age=fitted.OUwie.object$root.age, scaleHeight=FALSE, root.station=fitted.OUwie.object$root.station, alpha=fitted.OUwie.object$solution['alpha',], sigma.sq=fitted.OUwie.object$solution['sigma.sq',], theta=fitted.OUwie.object$theta[,1], clade=NULL, mserr=ifelse(is.null(fitted.OUwie.object$mserr.est), "none", fitted.OUwie.object$mserr.est), quiet=TRUE)$loglik)
+    return(-1*OUwie.fixed(phy=fitted.OUwie.object$phy,data=traits, model=fitted.OUwie.object$model, simmap.tree=fitted.OUwie.object$simmap.tree, root.age=fitted.OUwie.object$root.age, scaleHeight=FALSE, root.station=fitted.OUwie.object$root.station, shift.point=fitted.OUwie.object$shift.point,  alpha=fitted.OUwie.object$solution['alpha',], sigma.sq=fitted.OUwie.object$solution['sigma.sq',], theta=fitted.OUwie.object$theta[,1], clade=NULL, mserr=ifelse(is.null(fitted.OUwie.object$mserr.est), "none", fitted.OUwie.object$mserr.est), quiet=TRUE)$loglik)
 }
 
 
-OUwie.anc<-function(fitted.OUwie.object, opts = list("algorithm"="NLOPT_LN_SBPLX", "maxeval"="1000", "ftol_abs"=0.001), knowledge=FALSE){
+OUwie.anc <- function(fitted.OUwie.object, opts = list("algorithm"="NLOPT_LN_SBPLX", "maxeval"="1000", "ftol_abs"=0.001), knowledge=FALSE){
     if(!knowledge) {
       stop("You are trying to run the function without having read all the documentation. Please do ?OUwie.anc before using this function and read ALL the documentation.")
     }
@@ -110,5 +108,5 @@ plot.OUwie.anc <- function(x, ...) {
     # }
     x$phy <- ape::drop.tip(x$phy, x$phy$tip.label[grepl("node_",x$phy$tip.label)])
     pruned <- geiger::treedata(x$phy, quantitative.trait, warnings=FALSE, sort=TRUE)
-    phytools::contMap(pruned$phy, pruned$data[,1], method="user", anc.states=x$NodeRecon)
+    phytools::contMap(pruned$phy, pruned$data[,1], method="user", anc.states=x$NodeRecon, ...)
 }
