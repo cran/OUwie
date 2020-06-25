@@ -77,15 +77,15 @@ plot(surfaceDatNRIndent, mle.point="red", levels=c(0:20*0.1), xlab=expression(th
 load("surfaceDatNRIndent1_3.Rsave")
 plot(surfaceDatNRIndent, mle.point="red", levels=c(0:20*0.1), xlab=expression(theta[1]), ylab=expression(theta[3]) , xlim=c(0,5,1), ylim=c(0,5,1), col=grey.colors(21, start=0, end=1))
 
-## ---- eval=TRUE, echo=FALSE----------------------------------------------
+## ---- eval=TRUE, echo=TRUE-----------------------------------------------
 data(tworegime)
 set.seed(42)
-ouwiefit <- OUwie(tree, trait, model="OUM", scaleHeight=TRUE, root.station=FALSE, shift.point=0.5, quiet=TRUE)
+ouwiefit <- OUwie(tree, trait, model="OUM", scaleHeight=TRUE, root.station=FALSE, shift.point=0.5, quiet=TRUE, check.identify=FALSE)
 
-## ---- eval=FALSE, echo=FALSE---------------------------------------------
+## ---- eval=FALSE, echo=TRUE----------------------------------------------
 #  recon <- OUwie.anc(ouwiefit)
 
-## ---- eval=TRUE, echo=FALSE----------------------------------------------
+## ---- eval=TRUE, echo=TRUE-----------------------------------------------
 recon <- OUwie.anc(ouwiefit, knowledge=TRUE)
 
 ## ---- eval=TRUE, echo=FALSE, fig.height=10, fig.width=6.5, fig.cap = "A plot of the ancestral state reconstruction under an OUwie model."----
