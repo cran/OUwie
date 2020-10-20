@@ -8,15 +8,15 @@ require(OUwie)
 
 ## ---- eval=TRUE----------------------------------------------------------
 data(tworegime)
-pp <- OUwie(tree, trait, model="OUM", root.station=TRUE, scaleHeight=1, shift.point=0, quiet=TRUE)
+pp <- OUwie(tree, trait, model="OUM", root.station=TRUE, scaleHeight=TRUE, shift.point=0, algorithm="invert", quiet=TRUE)
 pp
 
 ## ---- eval=TRUE----------------------------------------------------------
 data(tworegime)
-pp <- OUwie(tree, trait, model="OUM", root.station=FALSE, scaleHeight=1, shift.point=0, quiet=TRUE)
+pp <- OUwie(tree, trait, model="OUM", root.station=FALSE, scaleHeight=TRUE, shift.point=0, algorithm="invert", quiet=TRUE)
 pp
 
-## ---- eval=TRUE, echo=FALSE, fig.height=10, fig.width=6.5, fig.cap = "The edges are painted by regime, assuming an optimum $\\theta_i$ for each color. As shown in Ho and Ane (2014) the left shows an case of unidentifiability case because every regime forms a connected component. The tree on the right shows a case of identifiability because the black regime covers two completely disconnected parts in the tree."----
+## ---- eval=TRUE, echo=FALSE, fig.height=10, fig.width=6.5, fig.cap = "The edges are painted by regime, assuming an optimum $\\theta_i$ for each color. As shown in Ho and Ane (2014a) the left shows an case of unidentifiability case because every regime forms a connected component. The tree on the right shows a case of identifiability because the black regime covers two completely disconnected parts in the tree."----
 
 par(mfcol=c(1,2), mar=c(4,4,0.5,0.5), oma=c(1,2,1,1))
 
@@ -80,7 +80,7 @@ plot(surfaceDatNRIndent, mle.point="red", levels=c(0:20*0.1), xlab=expression(th
 ## ---- eval=TRUE, echo=TRUE-----------------------------------------------
 data(tworegime)
 set.seed(42)
-ouwiefit <- OUwie(tree, trait, model="OUM", scaleHeight=TRUE, root.station=FALSE, shift.point=0.5, quiet=TRUE, check.identify=FALSE)
+ouwiefit <- OUwie(tree, trait, model="OUM", scaleHeight=TRUE, root.station=FALSE, shift.point=0.5, algorithm="invert", quiet=TRUE, check.identify=FALSE)
 
 ## ---- eval=FALSE, echo=TRUE----------------------------------------------
 #  recon <- OUwie.anc(ouwiefit)
@@ -90,4 +90,14 @@ recon <- OUwie.anc(ouwiefit, knowledge=TRUE)
 
 ## ---- eval=TRUE, echo=FALSE, fig.height=10, fig.width=6.5, fig.cap = "A plot of the ancestral state reconstruction under an OUwie model."----
 plot(recon, fsize=0.5)
+
+## ---- eval=TRUE, echo=TRUE-----------------------------------------------
+data(tworegime)
+three.point <- OUwie(tree, trait, model="OUMV", root.station=FALSE, scaleHeight=TRUE, shift.point=0.5, algorithm="three.point", quiet=TRUE)
+three.point
+
+## ---- eval=TRUE, echo=TRUE-----------------------------------------------
+data(tworegime)
+invert <- OUwie(tree, trait, model="OUMV", root.station=FALSE, scaleHeight=TRUE, shift.point=0.5, algorithm="invert", quiet=TRUE)
+invert
 

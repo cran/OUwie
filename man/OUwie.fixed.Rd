@@ -6,7 +6,8 @@
 OUwie.fixed(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"), 
 simmap.tree=FALSE, root.age=NULL, scaleHeight=FALSE, root.station=FALSE, 
 get.root.theta=FALSE, shift.point=0.5, alpha=NULL, sigma.sq=NULL, theta=NULL, 
-clade=NULL, mserr="none", check.identify=TRUE, quiet=FALSE)
+clade=NULL, mserr="none", check.identify=TRUE, algorithm=c("invert", "three.point"), 
+quiet=FALSE)
 }       
 \arguments{
 \item{phy}{a phylogenetic tree, in \code{ape} \dQuote{phylo} format and with internal nodes labeled denoting the ancestral selective regimes}
@@ -24,6 +25,7 @@ clade=NULL, mserr="none", check.identify=TRUE, quiet=FALSE)
 \item{clade}{a list containing a pair of taxa whose MRCA is the clade of interest.}
 \item{mserr}{designates whether a fourth column in the data matrix contains measurement error for each species value ("known"). The measurement error is assumed to be the standard error of the species mean. The default is "none".}
 \item{check.identify}{a logical indicating whether to check that the user-supplied regime paintings will produce identifiable theta estimates. The default is \code{TRUE}.}
+\item{algorithm}{designates whether matrix inversion (slow) or the three-point algorithm (fast) of Ho and Ane (2013) should be used.}
 \item{quiet}{a logical indicating whether or not to print progress to the screen. The default is "FALSE".}
 }
 \details{
@@ -48,10 +50,9 @@ The input is a tree and a data file. The tree must be of class \dQuote{phylo} an
 \item{$phy}{User-supplied tree}
 \item{$root.station}{A logical indicating whether the starting state, \eqn{\theta_0}{theta_0}, was estimated}
 \item{$scaleHeight}{Indicates whether the tree was constrained to a total height of 1.}
-\item{$res}{A vector of residuals from the model fit.  The residuals are ordered in the same way as the tips in the tree.}
 \item{$get.root.theta}{Indicates whether the root.theta was included in the model.}
 \item{$regime.weights}{A table containing parameter estimates and the weights for time spent in each regime for each tip.}
-
+\item{$algorithm}{The algorithm used to estimate parameters.}
 }
 
 \examples{
@@ -65,7 +66,7 @@ sigma.sq=c(0.1064417,0.3461386)
 theta=c(1.678196,0.4185894)
 
 OUwie.fixed(tree,trait,model=c("OUMVA"), simmap.tree=FALSE, scaleHeight=FALSE,
-clade=NULL, alpha=alpha,sigma.sq=sigma.sq,theta=theta)
+clade=NULL, alpha=alpha,sigma.sq=sigma.sq,theta=theta, algorithm="three.point")
 }
 }
 \author{Jeremy M. Beaulieu}

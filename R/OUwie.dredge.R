@@ -1,24 +1,24 @@
-#library(phytools)
-#library(OUwie)
-#need add getDescendants to the NAMESPACE
-#library(RColorBrewer)
 
 
-OUwie.dredge <- function(phy, data, criterion=c("AIC", "AICc", "BIC", "mBIC"), shift.max=3, sigma.sq.max.k=3, alpha.max.k=3, root.age=NULL, scaleHeight=FALSE, root.station=FALSE, shift.point=0.5, mserr="none", opts = list("algorithm"="NLOPT_LN_SBPLX", "maxeval"="1000", "ftol_rel"=.Machine$double.eps^0.5)) {
+OUwie.dredge <- function(phy, data, criterion=c("AIC", "AICc", "BIC", "mBIC"), shift.max=3, sigma.sq.max.k=3, alpha.max.k=3, root.age=NULL, scaleHeight=FALSE, root.station=FALSE, shift.point=0.5, mserr="none", algorithm=c("invert", "three.point"), opts = list("algorithm"="NLOPT_LN_SBPLX", "maxeval"="1000", "ftol_rel"=.Machine$double.eps^0.5)) {
     
     ### ADD WARNINGS ###
     ## Number of alpha or sigma pars cannot exceed 1+max shifts
     ##
+    if(length(algorithm) == 2){
+        algorithm = "invert"
+        warning("An algorithm was not specified. Defaulting to computing the determinant and inversion of the vcv.", call.=FALSE, immediate.=TRUE)
+    }
     
     #Coerce the data so that it will run in OUwie -- using values of OU1 as the starting points:
     cat("Initializing...","\n")
     
     data2 <- data.frame(taxon=as.character(data[,1]), regime=rep(1, length(data[,1])), trait=data[,2], stringsAsFactors=FALSE)
     #phy$node.label <- sample(c(1:2),phy$Nnode, replace=TRUE)
-    start.vals <- OUwie(phy, data2, model=c("OU1"), quiet=TRUE, root.station=TRUE, scaleHeight=scaleHeight, mserr=mserr, check.identify=FALSE)
+    start.vals <- OUwie(phy, data2, model=c("OU1"), quiet=TRUE, root.station=TRUE, scaleHeight=scaleHeight, mserr=mserr, check.identify=FALSE, algorithm="invert")
     cat("Begin optimization routine -- Starting values:", c(start.vals$solution[1,1], start.vals$solution[2,1]), "\n")
     phy$node.label <- NULL
-    find.shifts <- GetShiftModel(phy=phy, data=data, nmax=shift.max, criterion=criterion, alpha.max.k=alpha.max.k, sigma.sq.max.k=sigma.sq.max.k, root.age=root.age, scaleHeight=scaleHeight, root.station=root.station, shift.point=shift.point, start.vals=start.vals, mserr=mserr, opts=opts)
+    find.shifts <- GetShiftModel(phy=phy, data=data, nmax=shift.max, criterion=criterion, alpha.max.k=alpha.max.k, sigma.sq.max.k=sigma.sq.max.k, root.age=root.age, scaleHeight=scaleHeight, root.station=root.station, shift.point=shift.point, start.vals=start.vals, mserr=mserr, algorithm=algorithm, opts=opts)
 
     cat("Finished. Summarizing", "\n")
 
@@ -30,16 +30,24 @@ OUwie.dredge <- function(phy, data, criterion=c("AIC", "AICc", "BIC", "mBIC"), s
         mapped.data <- find.shifts$model.fit$model.data
     }
     
-    #Step 2: Get thetas:
-    mapped.thetas <- GetThetas(p=log(find.shifts$model.fit$fit.object$solution), phy=mapped.phy, data=mapped.data, simmap.tree=FALSE, root.age=root.age, scaleHeight=scaleHeight, root.station=root.station, shift.point=shift.point, index.mat=find.shifts$model.fit$index.mat, mserr=mserr)
-    regime.weights <- mapped.thetas$regime.weights
-
-    #Step 3: Now summarize everything:
-    solution <- mapped.thetas$solution
-    rownames(solution) <- rownames(find.shifts$model.fit$index.mat) <- c("alpha", "sigma.sq")
-    tot.states <- factor(c(mapped.phy$node.label, as.character(mapped.data[,2])))
-    colnames(solution) <- levels(tot.states)
-
+    if(algorithm == "invert"){
+        #Step 2: Get thetas:
+        mapped.thetas <- GetThetas(p=log(find.shifts$model.fit$fit.object$solution), phy=mapped.phy, data=mapped.data, simmap.tree=FALSE, root.age=root.age, scaleHeight=scaleHeight, root.station=root.station, shift.point=shift.point, index.mat=find.shifts$model.fit$index.mat, mserr=mserr)
+        regime.weights <- mapped.thetas$regime.weights
+        #Step 3: Now summarize everything:
+        solution <- mapped.thetas$solution
+        rownames(solution) <- rownames(find.shifts$model.fit$index.mat) <- c("alpha", "sigma.sq")
+        tot.states <- factor(c(mapped.phy$node.label, as.character(mapped.data[,2])))
+        colnames(solution) <- levels(tot.states)
+    }else{
+        solution <- matrix(find.shifts$model.fit$fit.object$solution[find.shifts$model.fit$index.mat], dim(find.shifts$model.fit$index.mat))
+        tot.states <- factor(c(mapped.phy$node.label, as.character(mapped.data[,2])))
+        colnames(solution) <- levels(tot.states)
+        rownames(solution) <- rownames(find.shifts$model.fit$index.mat) <- c("alpha", "sigma.sq", "theta")
+        mapped.thetas <- OUwie.fixed(phy=mapped.phy, data=mapped.data, model=c("OUM"), simmap.tree=FALSE, root.age=root.age, scaleHeight=scaleHeight, root.station=root.station, shift.point=shift.point, alpha=solution[1,], sigma.sq=solution[2,], theta=solution[3,], mserr=mserr, check.identify=FALSE, algorithm=algorithm, quiet=TRUE)
+        regime.weights <- mapped.thetas$regime.weights
+    }
+    
     if(mserr=="est"){
         mserr.est <- find.shifts$solution[length(find.shifts$solution)]
         param.count <- find.shifts$param.count
@@ -48,7 +56,7 @@ OUwie.dredge <- function(phy, data, criterion=c("AIC", "AICc", "BIC", "mBIC"), s
         mserr.est <- NULL
     }
     
-    obj <- list(loglik = mapped.thetas$loglik, criterion=criterion, criterion.score=find.shifts$model.fit$criterion, shift.model=find.shifts$shiftmodel, solution=solution, mserr.est=mserr.est, theta=mapped.thetas$theta, tot.states=tot.states, index.mat=find.shifts$model.fit$fit.object$index.mat, simmap.tree=FALSE, root.age=root.age, scaleHeight=scaleHeight, shift.point=shift.point, opts=opts, data=mapped.data, phy=mapped.phy, root.station=root.station, starting.vals=start.vals$solution, regime.weights=regime.weights)
+    obj <- list(loglik = mapped.thetas$loglik, criterion=criterion, criterion.score=find.shifts$model.fit$criterion, shift.model=find.shifts$shiftmodel, solution=solution, mserr.est=mserr.est, theta=mapped.thetas$theta, tot.states=tot.states, index.mat=find.shifts$model.fit$fit.object$index.mat, simmap.tree=FALSE, root.age=root.age, scaleHeight=scaleHeight, shift.point=shift.point, opts=opts, data=mapped.data, phy=mapped.phy, root.station=root.station, starting.vals=start.vals$solution, regime.weights=regime.weights, algorithm=algorithm)
     class(obj) <- "OUwie.dredge"
     return(obj)
 }
@@ -74,7 +82,7 @@ print.OUwie.dredge <- function(x, ...) {
 }
 
 
-GetShiftModel <- function(phy, data, nmax, criterion=c("AIC", "AICc", "BIC", "mBIC"), alpha.max.k, sigma.sq.max.k, root.age=NULL, scaleHeight=FALSE, root.station=FALSE, shift.point=0.5, start.vals, mserr="none", opts = list("algorithm"="NLOPT_LN_SBPLX", "maxeval"="1000", "ftol_rel"=.Machine$double.eps^0.5)){
+GetShiftModel <- function(phy, data, nmax, criterion=c("AIC", "AICc", "BIC", "mBIC"), alpha.max.k, sigma.sq.max.k, root.age=NULL, scaleHeight=FALSE, root.station=FALSE, shift.point=0.5, start.vals, mserr="none", algorithm, opts = list("algorithm"="NLOPT_LN_SBPLX", "maxeval"="1000", "ftol_rel"=.Machine$double.eps^0.5)){
     
     phy <- reorder(phy, "pruningwise")
     n <- length(phy$tip.label)
@@ -97,7 +105,7 @@ GetShiftModel <- function(phy, data, nmax, criterion=c("AIC", "AICc", "BIC", "mB
                 tempmodel = curmodel[-pos]
 
                 ###### Make sure the right stuff is passed here ######
-                temp <- OptimizeDredgeLikelihood(curmodel=tempmodel, phy=phy, data=data, criterion=criterion, alpha.max.k=alpha.max.k, sigma.sq.max.k=sigma.sq.max.k, root.age=root.age, scaleHeight=scaleHeight, root.station=root.station, shift.point=shift.point, start.vals=start.vals, mserr=mserr, opts=opts)
+                temp <- OptimizeDredgeLikelihood(curmodel=tempmodel, phy=phy, data=data, criterion=criterion, alpha.max.k=alpha.max.k, sigma.sq.max.k=sigma.sq.max.k, root.age=root.age, scaleHeight=scaleHeight, root.station=root.station, shift.point=shift.point, start.vals=start.vals, mserr=mserr, algorithm=algorithm, opts=opts)
                 #####################################################
 
                 if (temp$criterion < pro$criterion) {
@@ -113,7 +121,7 @@ GetShiftModel <- function(phy, data, nmax, criterion=c("AIC", "AICc", "BIC", "mB
                     tempmodel[[length(tempmodel)+1]] = i
 
                     ###### Make sure the right stuff is passed here ######
-                    temp <- OptimizeDredgeLikelihood(curmodel=tempmodel, phy=phy, data=data, criterion=criterion, alpha.max.k=alpha.max.k, sigma.sq.max.k=sigma.sq.max.k, root.age=root.age, scaleHeight=scaleHeight, root.station=root.station, shift.point=shift.point, start.vals=start.vals, mserr=mserr, opts=opts)
+                    temp <- OptimizeDredgeLikelihood(curmodel=tempmodel, phy=phy, data=data, criterion=criterion, alpha.max.k=alpha.max.k, sigma.sq.max.k=sigma.sq.max.k, root.age=root.age, scaleHeight=scaleHeight, root.station=root.station, shift.point=shift.point, start.vals=start.vals, mserr=mserr, algorithm=algorithm, opts=opts)
                     #####################################################
 
                     if (temp$criterion < pro$criterion) {
@@ -129,7 +137,7 @@ GetShiftModel <- function(phy, data, nmax, criterion=c("AIC", "AICc", "BIC", "mB
                     tempmodel[j] = i
 
                     ###### Make sure the right stuff is passed here ######
-                    temp <- OptimizeDredgeLikelihood(curmodel=tempmodel, phy=phy, data=data, criterion=criterion, alpha.max.k=alpha.max.k, sigma.sq.max.k=sigma.sq.max.k, root.age=root.age, scaleHeight=scaleHeight, root.station=root.station, shift.point=shift.point, start.vals=start.vals, mserr=mserr, opts=opts)
+                    temp <- OptimizeDredgeLikelihood(curmodel=tempmodel, phy=phy, data=data, criterion=criterion, alpha.max.k=alpha.max.k, sigma.sq.max.k=sigma.sq.max.k, root.age=root.age, scaleHeight=scaleHeight, root.station=root.station, shift.point=shift.point, start.vals=start.vals, mserr=mserr, algorithm=algorithm, opts=opts)
                     #####################################################
                     
                     if (temp$criterion < pro$criterion) {
@@ -155,7 +163,7 @@ GetShiftModel <- function(phy, data, nmax, criterion=c("AIC", "AICc", "BIC", "mB
 #dat <- data.frame(taxon = flowerTree$tip.label, trait=flowerSize$log_transformed_size)
 #phy <- flowerTree
 #start.values <- start.vals
-#GetShiftModel(phy, dat, nmax=1, criterion="mBIC", alpha.max.k=1, sigma.sq.max.k=1, start.vals=start.values, root.station=TRUE)
+#OUwie:::GetShiftModel(phy, dat, nmax=1, criterion="mBIC", alpha.max.k=1, sigma.sq.max.k=1, start.vals=start.values, root.station=TRUE, algorithm="three.point")
 
 GetShiftMap <- function(curmodel, phy, data){
     phy = reorder(phy, "pruningwise")
@@ -236,7 +244,7 @@ GetThetas <- function(p, phy, data, simmap.tree, root.age, scaleHeight, root.sta
     Rate.mat <- index.mat
     Rate.mat[] <- c(p.new, 1e-10)[index.mat]
     tmp <- NA
-    try(tmp <- OUwie.fixed(phy=phy, data=data, model=c("OUM"), simmap.tree=simmap.tree, root.age=root.age, scaleHeight=scaleHeight, root.station=root.station, shift.point=shift.point, alpha=Rate.mat[1,], sigma.sq=Rate.mat[2,], theta=NULL, mserr=mserr, check.identify=FALSE, quiet=TRUE), silent=TRUE)
+    try(tmp <- OUwie.fixed(phy=phy, data=data, model=c("OUM"), simmap.tree=simmap.tree, root.age=root.age, scaleHeight=scaleHeight, root.station=root.station, shift.point=shift.point, alpha=Rate.mat[1,], sigma.sq=Rate.mat[2,], theta=NULL, mserr=mserr, check.identify=FALSE, algorithm="invert", quiet=TRUE), silent=TRUE)
     if(!is.finite(tmp[[1]])){
         return(NULL)
     }
@@ -248,12 +256,17 @@ GetThetas <- function(p, phy, data, simmap.tree, root.age, scaleHeight, root.sta
 }
 
 
-GetLikelihood <- function(p, phy, data, simmap.tree, root.age, scaleHeight, root.station, shift.point, index.mat=index.mat, mserr=mserr){
+GetLikelihood <- function(p, phy, data, simmap.tree, root.age, scaleHeight, root.station, shift.point, index.mat=index.mat, mserr=mserr, algorithm=algorithm){
     p.new <- exp(p)
     Rate.mat <- index.mat
     Rate.mat[] <- c(p.new, 1e-10)[index.mat]
     tmp <- NA
-    try(tmp <- OUwie.fixed(phy=phy, data=data, model=c("OUM"), simmap.tree=simmap.tree, root.age=root.age, scaleHeight=scaleHeight, root.station=root.station, shift.point=shift.point, alpha=Rate.mat[1,], sigma.sq=Rate.mat[2,], theta=NULL, mserr=mserr, check.identify=FALSE, quiet=TRUE)$loglik, silent=TRUE)
+    if(algorithm == "invert"){
+        try(tmp <- OUwie.fixed(phy=phy, data=data, model=c("OUM"), simmap.tree=simmap.tree, root.age=root.age, scaleHeight=scaleHeight, root.station=root.station, shift.point=shift.point, alpha=Rate.mat[1,], sigma.sq=Rate.mat[2,], theta=NULL, mserr=mserr, check.identify=FALSE, algorithm=algorithm, quiet=TRUE)$loglik, silent=TRUE)
+    }
+    if(algorithm == "three.point"){
+        try(tmp <- OUwie.fixed(phy=phy, data=data, model=c("OUM"), simmap.tree=simmap.tree, root.age=root.age, scaleHeight=scaleHeight, root.station=root.station, shift.point=shift.point, alpha=Rate.mat[1,], sigma.sq=Rate.mat[2,], theta=Rate.mat[3,], mserr=mserr, check.identify=FALSE, algorithm=algorithm, quiet=TRUE)$loglik, silent=TRUE)
+    }
     if(!is.finite(tmp)){
         return(10000000)
     }
@@ -265,8 +278,7 @@ GetLikelihood <- function(p, phy, data, simmap.tree, root.age, scaleHeight, root
     return(loglik)
 }
 
-
-OptimizeDredgeLikelihood <- function(curmodel, phy, data, criterion=c("AIC", "AICc", "BIC", "mBIC"), alpha.max.k, sigma.sq.max.k, root.age=NULL, scaleHeight=FALSE, root.station=FALSE, shift.point=0.5, start.vals, mserr="none", opts = list("algorithm"="NLOPT_LN_SBPLX", "maxeval"="1000", "ftol_rel"=.Machine$double.eps^0.5)){
+OptimizeDredgeLikelihood <- function(curmodel, phy, data, criterion=c("AIC", "AICc", "BIC", "mBIC"), alpha.max.k, sigma.sq.max.k, root.age=NULL, scaleHeight=FALSE, root.station=FALSE, shift.point=0.5, start.vals, mserr="none", algorithm, opts = list("algorithm"="NLOPT_LN_SBPLX", "maxeval"="1000", "ftol_rel"=.Machine$double.eps^0.5)){
    
     ub=20
     lb=-21
@@ -297,7 +309,6 @@ OptimizeDredgeLikelihood <- function(curmodel, phy, data, criterion=c("AIC", "AI
     #### GET MODEL COMBINATIONS ####
     dredge.combos <- DredgeCombinations(shifts=shifts, alpha.max.k=alpha.max.k, sigma.sq.max.k=sigma.sq.max.k)
     ###########################################
-
     check.identify <- check.identify.dredge(phy=mapping.tree.data$phy, data=mapping.tree.data$data, simmap.tree=FALSE, get.penalty=TRUE, quiet=TRUE)
     if(check.identify[1] == 0){
         best.fit <- NULL
@@ -306,19 +317,38 @@ OptimizeDredgeLikelihood <- function(curmodel, phy, data, criterion=c("AIC", "AI
         return(best.fit)
     }
 
-    index.mat <- def.set.pars <- matrix(0, 2, k+1)
-    def.set.pars <- c(rep(start.vals$solution[1,1], k+1), rep(start.vals$solution[2,1], k+1))
+    if(algorithm == "invert"){
+        index.mat <- def.set.pars <- matrix(0, 2, k+1)
+        def.set.pars <- c(rep(start.vals$solution[1,1], k+1), rep(start.vals$solution[2,1], k+1))
+    }
+    if(algorithm == "three.point"){
+        index.mat <- def.set.pars <- matrix(0, 3, k+1)
+        means.by.regime <- with(data, tapply(mapping.tree.data$data[,2], mapping.tree.data$data[,1], mean))
+        names(means.by.regime) <- NULL
+        def.set.pars <- c(rep(start.vals$solution[1,1], k+1), rep(start.vals$solution[2,1], k+1), means.by.regime)
+    }
     
     current.best.score <- Inf
     current.fit <- NULL
     
     for(alpha.index in 1:dim(dredge.combos$alpha.par.map)[1]){
         for(sigma.index in 1:dim(dredge.combos$sigma.sq.par.map)[1]){
-            index.mat[1,] <- as.numeric(dredge.combos$alpha.par.map[alpha.index,])
-            max.par <- max(index.mat[1,])
-            index.mat[2,] <- as.numeric(dredge.combos$sigma.sq.par.map[sigma.index,]) + max.par
-            np <- max(index.mat)
-            pars <- c(index.mat[1,], index.mat[2,])
+            if(algorithm == "three.point"){
+                index.mat[1,] <- as.numeric(dredge.combos$alpha.par.map[alpha.index,])
+                max.par <- max(index.mat[1,])
+                index.mat[2,] <- as.numeric(dredge.combos$sigma.sq.par.map[sigma.index,]) + max.par
+                max.par <- max(index.mat[2,])
+                index.mat[3,] <- (max.par+1):(max.par + dim(index.mat)[2])
+                np <- max(index.mat)
+                pars <- c(index.mat[1,], index.mat[2,], index.mat[3,])
+            }else{
+                index.mat[1,] <- as.numeric(dredge.combos$alpha.par.map[alpha.index,])
+                max.par <- max(index.mat[1,])
+                index.mat[2,] <- as.numeric(dredge.combos$sigma.sq.par.map[sigma.index,]) + max.par
+                np <- max(index.mat)
+                pars <- c(index.mat[1,], index.mat[2,])
+            }
+            
             param.count <- np
             if(root.station == FALSE){
                 param.count <- param.count
@@ -339,7 +369,7 @@ OptimizeDredgeLikelihood <- function(curmodel, phy, data, criterion=c("AIC", "AI
                 upper <- c(upper,ub)
             }
             #optimize likelihood
-            out <- nloptr(x0=log(ip), eval_f=GetLikelihood, phy=mapping.tree.data$phy, data=mapping.tree.data$data, simmap.tree=FALSE, root.age=root.age, scaleHeight=scaleHeight, root.station=root.station, shift.point=shift.point, index.mat=index.mat, mserr=mserr, lb=lower, ub=upper, opts=opts)
+            out <- nloptr(x0=log(ip), eval_f=GetLikelihood, phy=mapping.tree.data$phy, data=mapping.tree.data$data, simmap.tree=FALSE, root.age=root.age, scaleHeight=scaleHeight, root.station=root.station, shift.point=shift.point, index.mat=index.mat, mserr=mserr, algorithm=algorithm, lb=lower, ub=upper, opts=opts)
             out$solution <- exp(out$solution)
             loglik <- out$objective
             if(criterion == "AIC"){
