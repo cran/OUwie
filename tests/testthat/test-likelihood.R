@@ -116,7 +116,7 @@ test_that("testing simmap", {
     }
     ouwiefit.nodes <- OUwie(tree, trait, model="OUM", root.station=FALSE, shift.point=0.5, algorithm="invert", quiet=TRUE)
     ouwiefit.simmap <- OUwie(test, trait, model="OUM", simmap.tree=TRUE, root.station=FALSE, algorithm="invert", shift.point=0.5, quiet=TRUE)
-    comparison <- identical(round(ouwiefit.nodes$loglik,5), round(ouwiefit.simmap$loglik,5))
+        comparison <- identical(round(ouwiefit.nodes$loglik,5), round(ouwiefit.simmap$loglik,5))
     expect_true(comparison)
 })
 
@@ -243,7 +243,7 @@ test_that("testing BM1 three-point likelihood", {
     data(tworegime)
     set.seed(42)
     ouwiefit <- OUwie(tree, trait, model="BM1", scaleHeight=TRUE, root.station=FALSE, shift.point=0.5, algorithm="three.point", quiet=TRUE)
-    comparison <- identical(round(ouwiefit$loglik,5), -21.95911)
+    comparison <- identical(round(ouwiefit$loglik,5), round(-21.95911, 5))
     expect_true(comparison)
 })
 
@@ -254,7 +254,7 @@ test_that("testing BMS three-point likelihood", {
     data(tworegime)
     set.seed(42)
     ouwiefit <- OUwie(tree, trait, model="BMS", scaleHeight=TRUE, root.station=FALSE, shift.point=0.5, algorithm="three.point", quiet=TRUE)
-    comparison <- identical(round(ouwiefit$loglik,5), -17.85074)
+    comparison <- identical(round(ouwiefit$loglik,5), round(-17.85074,5))
     expect_true(comparison)
 })
 
@@ -265,7 +265,7 @@ test_that("testing OU1 three-point likelihood", {
     data(tworegime)
     set.seed(42)
     ouwiefit <- OUwie(tree, trait, model="OU1", scaleHeight=TRUE, root.station=FALSE, shift.point=0.5, algorithm="three.point", quiet=TRUE)
-    comparison <- identical(round(ouwiefit$loglik,5), -21.74538)
+    comparison <- identical(round(ouwiefit$loglik,4), round(-21.74538,4))
     expect_true(comparison)
 })
 
@@ -276,7 +276,7 @@ test_that("testing OUM three-point likelihood", {
     data(tworegime)
     set.seed(42)
     ouwiefit <- OUwie(tree, trait, model="OUM", scaleHeight=TRUE, root.station=FALSE, shift.point=0.5, algorithm="three.point", quiet=TRUE)
-    comparison <- identical(round(ouwiefit$loglik,5), -19.51388)
+    comparison <- identical(round(ouwiefit$loglik,3), round(-19.51388,3))
     expect_true(comparison)
 })
 
@@ -287,7 +287,7 @@ test_that("testing OUMV three-point likelihood", {
     data(tworegime)
     set.seed(42)
     ouwiefit <- OUwie(tree, trait, model="OUMV", scaleHeight=TRUE, root.station=FALSE, shift.point=0.5, algorithm="three.point", quiet=TRUE)
-    comparison <- identical(round(ouwiefit$loglik,5), -14.79506)
+    comparison <- identical(round(ouwiefit$loglik,3), round(-14.79506,3))
     expect_true(comparison)
 })
 
@@ -298,7 +298,7 @@ test_that("testing OUMA three-point likelihood", {
     data(tworegime)
     set.seed(42)
     ouwiefit <- OUwie(tree, trait, model="OUMA", scaleHeight=TRUE, root.station=FALSE, shift.point=0.5, algorithm="three.point", quiet=TRUE)
-    comparison <- identical(round(ouwiefit$loglik,5), -19.42678)
+    comparison <- identical(round(ouwiefit$loglik,3), round(-19.42678,3))
     expect_true(comparison)
 })
 
@@ -309,7 +309,23 @@ test_that("testing OUMVA three-point likelihood", {
     data(tworegime)
     set.seed(42)
     ouwiefit <- OUwie(tree, trait, model="OUMVA", scaleHeight=TRUE, root.station=FALSE, shift.point=0.5, algorithm="three.point", quiet=TRUE)
-    comparison <- identical(round(ouwiefit$loglik,5), -14.06695)
+    comparison <- identical(round(ouwiefit$loglik,3), round(-14.03592,3))
+    expect_true(comparison)
+})
+
+
+test_that("testing mserr vs three-point", {
+    skip_on_cran()
+    
+    data(tworegime)
+    trait[,4] <- abs(rnorm(length(tree$tip.label), mean = 1, sd = 1/10))
+    alpha=c(5, 10)
+    sigma.sq=c(1, 2)
+    theta=c(5, 10)
+    INV <- c(OUwie.fixed(tree,trait,model=c("OUMVA"), simmap.tree=FALSE, scaleHeight=TRUE, mserr = "known", clade=NULL, alpha=alpha,sigma.sq=sigma.sq,theta=theta, algorithm = "invert", quiet=TRUE)$loglik)
+    TPT <- OUwie.fixed(tree,trait,model=c("OUMVA"), simmap.tree=FALSE, scaleHeight=TRUE, mserr = "known", clade=NULL, alpha=alpha,sigma.sq=sigma.sq,theta=theta, algorithm = "three.point", quiet=TRUE)$loglik
+    
+    comparison <- identical(round(INV, 5), round(TPT, 5))
     expect_true(comparison)
 })
 

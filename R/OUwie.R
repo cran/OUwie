@@ -9,7 +9,7 @@
 #global OU (OU1), multiple regime OU (OUM), multiple sigmas (OUMV), multiple alphas (OUMA),
 #and the multiple alphas and sigmas (OUMVA).
 
-OUwie <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA", "TrendyM", "TrendyMS"), simmap.tree=FALSE, root.age=NULL, scaleHeight=FALSE, root.station=FALSE, get.root.theta=FALSE, shift.point=0.5, clade=NULL, mserr="none", starting.vals=NULL, check.identify=TRUE, algorithm=c("invert", "three.point"), diagn=FALSE, quiet=FALSE, warn=TRUE, opts = list("algorithm"="NLOPT_LN_SBPLX", "maxeval"="1000", "ftol_rel"=.Machine$double.eps^0.5)){
+OUwie <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA", "TrendyM", "TrendyMS"), simmap.tree=FALSE, root.age=NULL, scaleHeight=FALSE, root.station=FALSE, get.root.theta=FALSE, shift.point=0.5, clade=NULL, mserr="none", starting.vals=NULL, check.identify=TRUE, algorithm=c("invert", "three.point"), diagn=FALSE, quiet=FALSE, warn=TRUE, lb = NULL, ub = NULL, opts = list("algorithm"="NLOPT_LN_SBPLX", "maxeval"="1000", "ftol_rel"=.Machine$double.eps^0.5)){
 
     if(length(algorithm) == 2){
         algorithm = "invert"
@@ -45,6 +45,11 @@ OUwie <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMV
         }
     }
 
+    if(diagn == TRUE & algorithm == "three.point"){
+        diagn=FALSE
+        warning("Turning off internal diagnostic, not implemented for the three-point algorithm.", call. = FALSE, immediate.=TRUE)
+    }
+    
     if(check.identify == TRUE){
             identifiable <- check.identify(phy=phy, data=data, simmap.tree=simmap.tree, quiet=TRUE)
             if(identifiable == 0){
@@ -71,6 +76,10 @@ OUwie <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMV
             }
 		}
 	}
+  
+  if(algorithm == "three.point" & scaleHeight == FALSE){
+    warning("It is recommended that you set scaleHeight to TRUE if using the three-point algorithm.", call. = FALSE, immediate.=TRUE)
+  }
 
     #Values to be used throughout
 	n <- max(phy$edge[,1])
@@ -186,6 +195,7 @@ OUwie <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMV
     if(algorithm == "three.point"){
         x <- data[,2]
         names(x) <- rownames(data)
+        tip.paths <- lapply(1:length(data[,2]), function(x) getPathToRoot(phy, x))
     }else{
         x <- as.matrix(data[,2])
     }
@@ -313,8 +323,16 @@ OUwie <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMV
 		}
 	}
 
-    index.mat[is.na(index.mat)] <- param.count+1
-
+	if(model == "BM1" | model == "BMS"){
+	  if(algorithm == "three.point"){
+	    index.mat[is.na(index.mat)] <- param.count + 1
+	  }else{
+	    index.mat[is.na(index.mat)] <- param.count
+	  }
+	}else{
+	  index.mat[is.na(index.mat)] <- param.count + 1
+	}	
+	
 	if(warn==TRUE){
 		if(param.count > (ntips/10)){
 			warning("You might not have enough data to fit this model well", call.=FALSE, immediate.=TRUE)
@@ -367,7 +385,11 @@ OUwie <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMV
                     expected.vals <- colSums(t(W) * pars[,1])
                     names(expected.vals) <- phy$tip.label
                 }
-                transformed.tree <- transformPhy(phy, map, pars)
+                transformed.tree <- transformPhy(phy, map, pars, tip.paths)
+                if(mserr=="known"){
+                  TIPS <- transformed.tree$tree$edge[,2] <= length(transformed.tree$tree$tip.label)
+                  transformed.tree$tree$edge.length[TIPS] <- transformed.tree$tree$edge.length[TIPS] + (data[,3]^2/transformed.tree$diag/transformed.tree$diag)
+                }
                 comp <- NA
                 try(comp <- phylolm::three.point.compute(transformed.tree$tree, x, expected.vals, transformed.tree$diag), silent=TRUE)
                 if(is.na(comp[1])){
@@ -411,27 +433,37 @@ OUwie <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMV
 	if(quiet==FALSE){
 		cat("Initializing...", "\n")
 	}
-
-	lb = -20
-	ub = log(100)
-	lower = rep(-20, np)
-	upper = rep(log(100), np)
-
-    if(scaleHeight==TRUE){
-        phy$edge.length <- phy$edge.length/Tmax
-        Tmax <- 1
-    }else{
-        Tmax <- max(branching.times(phy))
-    }
+  
+	if(is.null(lb)){
+	  lb <- 1e-9
+	}
+	if(is.null(ub)){
+	  ub <- 100
+	}
+	lower = rep(log(lb), np)
+	upper = rep(log(ub), np)
 
     if(algorithm == "three.point"){
         if(simmap.tree == FALSE){
             map <- getMapFromNode(phy, tip.states, int.states, shift.point)
+            if(scaleHeight==TRUE){
+              map <- lapply(map, function(x) x/Tmax)
+            }
         }else{
             map <- phy$maps
+            if(scaleHeight==TRUE){
+              map <- lapply(map, function(x) x/Tmax)
+            }
         }
     }
 
+	if(scaleHeight==TRUE){
+	  phy$edge.length <- phy$edge.length/Tmax
+	  Tmax <- 1
+	}else{
+	  Tmax <- max(branching.times(phy))
+	}
+	
 	if(model == "OU1" | model == "OUM" | model == "OUMV" | model == "OUMA" | model == "OUMVA"){
         #Initial value for alpha is just the half life based on the entire length of the tree:
         if(is.null(starting.vals)){
@@ -456,12 +488,12 @@ OUwie <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMV
                 names(means.by.regime) <- NULL
                 ip <- c(ip, means.by.regime)
             }
-            lower <- c(lower, rep(-20, k))
-            upper <- c(upper, rep( 20, k))
+            lower <- c(lower, rep(log(lb), k))
+            upper <- c(upper, rep(log(ub), k))
             if(get.root.theta == TRUE){
                 ip <- c(ip, means.by.regime[root.state])
-                lower <- c(lower, -20)
-                upper <- c(upper, 20)
+                lower <- c(lower, log(lb))
+                upper <- c(upper, log(ub))
             }
         }
 		if(quiet==FALSE){
@@ -476,34 +508,38 @@ OUwie <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMV
             sig <- starting.vals
         }
 		#####################
-		if(model=="BMS"){
-			ip <- rep(sig, k)
-            if(get.root.theta == TRUE){
-                ip <- c(ip, mean(x))
-                lower <- c(lower, -20)
-                upper <- c(upper, 20)
-            }
-		}
-		else{
-			if(model=="BM1"){
-				ip <- sig
-                if(get.root.theta == TRUE){
-                    ip <- c(ip, mean(x))
-                    lower <- c(lower, -20)
-                    upper <- c(upper, 20)
-                }
-			}
-			if(model=="TrendyM"){
+	  if(model=="BMS"){
+	    ip <- rep(sig, k)
+	    if(get.root.theta == TRUE){
+	      if(algorithm == "three.point"){
+	        ip <- c(ip, mean(x))
+	        lower <- c(lower, log(lb))
+	        upper <- c(upper, log(ub))
+	      }
+	    }
+	  }
+	  else{
+	    if(model=="BM1"){
+	      ip <- sig
+	      if(get.root.theta == TRUE){
+	        if(algorithm == "three.point"){
+	          ip <- c(ip, mean(x))
+	          lower <- c(lower, log(lb))
+	          upper <- c(upper, log(ub))
+	        }
+	      }
+	    }
+	    if(model=="TrendyM"){
 				#We assume that the starting trend values are zero:
 				ip <- c(sig, rep(exp(-20), param.count-2), mean(x))
-				lower <- c(lb,rep(-20, param.count-2), -20)
-				upper <- c(ub,rep(20, param.count-2), 20)
+				lower <- c(lb,rep(log(lb), param.count-2), log(lb))
+				upper <- c(ub,rep(log(ub), param.count-2), log(ub))
 			}
 			if(model == "TrendyMS"){
 				#We assume that the starting trend values are zero:
 				ip <- c(rep(sig, k), rep(exp(-20), (np-1) - k), mean(x))
-				lower <- c(rep(lb,k), rep(-20, (np-1) - k), -20)
-				upper <- c(rep(ub,k), rep(20, (np-1) - k), 20)
+				lower <- c(rep(lb,k), rep(log(lb), (np-1) - k), log(lb))
+				upper <- c(rep(ub,k), rep(log(ub), (np-1) - k), log(ub))
 			}
 		}
 		if(quiet==FALSE){
@@ -553,6 +589,11 @@ OUwie <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMV
 	}else{
         if(algorithm == "invert"){
             theta <- dev.theta(out$solution, index.mat, edges, mserr)
+        }else{
+            if(model == "BM1" | model == "BMS"){
+                max.pars <- max(index.mat)
+                index.mat[3,] <- max.pars - 1
+            }
         }
 	}
 
@@ -582,7 +623,7 @@ OUwie <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMV
         
         if(get.root.theta == TRUE){
             if(model == "BM1" | model == "BMS"){
-                W <- matrix(0, Ntip(phy), k)
+                W <- matrix(0, Ntip(phy), k + 1)
                 W[,1] <- 1
             }else{
                 W <- weight.mat(phy, edges, Rate.mat=solution, root.state=root.state, simmap.tree=simmap.tree, root.age=root.age, scaleHeight=scaleHeight, assume.station=FALSE, shift.point=shift.point)
@@ -624,6 +665,7 @@ OUwie <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMV
 		obj = list(loglik = loglik, AIC = -2*loglik+2*param.count, AICc=-2*loglik+(2*param.count*(ntips/(ntips-param.count-1))), BIC = -2*loglik + log(ntips) * param.count, model=model, param.count=param.count, solution=solution, theta=theta, solution.se=solution.se, tot.states=tot.states, index.mat=index.mat, simmap.tree=simmap.tree, root.age=root.age, shift.point=shift.point, opts=opts, data=data, phy=phy, root.station=root.station, scaleHeight=scaleHeight, starting.vals=starting.vals, lb=lower, ub=upper, iterations=out$iterations, get.root.theta=get.root.theta, regime.weights=regime.weights, eigval=eigval, eigvect=eigvect, new.start=out$new.start, algorithm=algorithm)
 
 	}
+    
 	if(diagn==FALSE){
 		solution <- matrix(out$solution[index.mat], dim(index.mat))
 		if(model=="TrendyM" | model=="TrendyMS"){
@@ -708,10 +750,10 @@ print.OUwie<-function(x, ...){
 
 	if (is.character(x$model)) {
 		if (x$model == "BM1" | x$model == "BMS" | x$model == "TrendyM" | x$model == "TrendyMS"){
-			param.est <- x$solution
-			if(x$root.station==FALSE){
-			theta.mat <- matrix(t(x$theta[1,]), 2, length(levels(x$tot.states)))
-			}
+            param.est<- x$solution[1:2,]
+            if(x$root.station==FALSE){
+                theta.mat <- matrix(t(x$theta[1,]), 2, length(levels(x$tot.states)))
+            }
 			else{
 				theta.mat<-matrix(t(x$theta), 2, length(levels(x$tot.states)))
 			}
@@ -723,7 +765,7 @@ print.OUwie<-function(x, ...){
 				colnames(theta.mat) <- c(colnames(x$phy$mapped.edge))
 			}
 			cat("Rates\n")
-			print(param.est)
+            print(param.est)
 			cat("\n")
 			cat("Optima\n")
 			print(theta.mat)
