@@ -17,7 +17,8 @@
 #multiple alphas (OUSMA): alpha=c(0.5,0.1); sigma.sq=c(0.9,0.9); theta0=0; theta=c(1,2)
 #multiple alphas and sigmas (OUSMVA): alpha=c(0.5,0.1); sigma.sq=c(0.45,0.9); theta0=0; theta=c(1,2)
 
-OUwie.sim <- function(phy=NULL, data=NULL, simmap.tree=FALSE, root.age=NULL, scaleHeight=FALSE, alpha=NULL, sigma.sq=NULL, theta0=NULL, theta=NULL, mserr="none", shift.point=0.5, fitted.object=NULL){
+OUwie.sim <- function(phy=NULL, data=NULL, simmap.tree=FALSE, root.age=NULL, scaleHeight=FALSE, alpha=NULL, sigma.sq=NULL, theta0=NULL, theta=NULL, mserr="none", shift.point=0.5, fitted.object=NULL, get.all=FALSE){
+	mserr_vector <- NA
     if(!is.null(fitted.object)) {
         if(grepl("BM", fitted.object$model) | grepl("OU1", fitted.object$model)) {
             stop(paste("not implemented yet for ", fitted.object$model))
@@ -54,8 +55,11 @@ OUwie.sim <- function(phy=NULL, data=NULL, simmap.tree=FALSE, root.age=NULL, sca
                     theta <- theta.all[2:length(theta.all)]
                     theta0 <- theta.all[1]
                 }else{
+                    int.states <- factor(phy$node.label)
+                    phy.tmp <- phy
+                    phy.tmp$node.label <- as.numeric(int.states)
                     theta <- matrix(t(fitted.object$theta), 2, length(levels(fitted.object$tot.states)))[1,]
-                    theta0 <- theta[phy$node.label[1]]
+                    theta0 <- theta[phy.tmp$node.label[1]]
                 }
             }
         }
@@ -75,7 +79,19 @@ OUwie.sim <- function(phy=NULL, data=NULL, simmap.tree=FALSE, root.age=NULL, sca
         }
         if(mserr == "known"){
             data <- data.frame(data[,2], data[,3], row.names=data[,1])
+			mserr_vector <- data[,2] #because we've shifted things over
         }
+		if(is.numeric(mserr)){
+			if(length(mserr) == length(phy$tip.label)){
+				data <- data.frame(data[,2], mserr, row.names=data[,1])
+				mserr_vector <- mserr
+			}	
+			if(length(mserr)==1){
+				data <- data.frame(data[,2], rep(mserr, length(phy$tip.label)), row.names=data[,1])
+				mserr_vector <- rep(mserr, length(phy$tip.label))
+			}
+			mserr <- "known"
+		}
 
 		data <- data[phy$tip.label,]
 
@@ -153,20 +169,39 @@ OUwie.sim <- function(phy=NULL, data=NULL, simmap.tree=FALSE, root.age=NULL, sca
 			}
 		}
 
-		sim.dat <- matrix(,ntips,3)
-		sim.dat <- data.frame(sim.dat)
+        if(get.all == TRUE){
+            sim.dat <- matrix(,length(x),3)
+            sim.dat <- data.frame(sim.dat)
 
-        sim.dat[,1] <- phy$tip.label
-		sim.dat[,2] <- data[,1]
-		sim.dat[,3] <- x[TIPS]
+            sim.dat[,1] <- NA
+            sim.dat[TIPS,1] <- phy$tip.label
+            sim.dat[,2] <- c(data[,1], phy$node.label)
+            sim.dat[,3] <- x
+            
+            if(mserr == "known"){
+                for(i in TIPS){
+                    sim.dat[i,3] <- rnorm(1,sim.dat[i,3],data[i,2])
+                }
+            }
+        }else{
+            sim.dat <- matrix(,ntips,3)
+            sim.dat <- data.frame(sim.dat)
 
-        if(mserr == "known"){
-            for(i in TIPS){
-                sim.dat[i,3] <- rnorm(1,sim.dat[i,3],data[i,2])
+            sim.dat[,1] <- phy$tip.label
+            sim.dat[,2] <- data[,1]
+            sim.dat[,3] <- x[TIPS]
+            
+            if(mserr == "known"){
+                for(i in TIPS){
+                    sim.dat[i,3] <- rnorm(1,sim.dat[i,3],data[i,2])
+                }
             }
         }
-		colnames(sim.dat)<-c("Genus_species","Reg","X")
 
+		colnames(sim.dat)<-c("Genus_species","Reg","X")
+		if(mserr=="known"){
+			sim.dat$mserr <- mserr_vector	
+		}
 	}
 	if(simmap.tree==TRUE){
 		n=max(phy$edge[,1])
@@ -181,15 +216,16 @@ OUwie.sim <- function(phy=NULL, data=NULL, simmap.tree=FALSE, root.age=NULL, sca
 		branch.lengths[(ntips+1):(n-1)]=branching.times(phy)[-1]/max(branching.times(phy))
 
 		#Obtain root state and internal node labels
-		root.state<-which(colnames(phy$mapped.edge)==names(phy$maps[[1]][1]))
-
+		root.edge.index <- which(phy$edge[,1] == ntips+1)
+		root.state <- which(colnames(phy$mapped.edge)==names(phy$maps[[root.edge.index[2]]][1]))
+		
 		#New tree matrix to be used for subsetting regimes
 		edges=cbind(c(1:(n-1)),phy$edge,MakeAgeTable(phy, root.age=root.age))
 		if(scaleHeight==TRUE){
 			edges[,4:5]<-edges[,4:5]/max(MakeAgeTable(phy, root.age=root.age))
 			root.age <- max(MakeAgeTable(phy, root.age=root.age))
 			phy$maps <- lapply(phy$maps, function(x) x/root.age)
-      root.age = 1
+            root.age = 1
 		}
 		edges=edges[sort.list(edges[,3]),]
 
@@ -232,23 +268,42 @@ OUwie.sim <- function(phy=NULL, data=NULL, simmap.tree=FALSE, root.age=NULL, sca
 					newtime<-oldtime+regimeduration
 					regimenumber<-which(colnames(phy$mapped.edge)==names(currentmap)[regimeindex])
 					x[edges[i,3],]=x[edges[i,3],]*exp(-alpha[regimenumber]*(newtime-oldtime))+(theta[regimenumber])*(1-exp(-alpha[regimenumber]*(newtime-oldtime)))+sigma[regimenumber]*rnorm(1,0,1)*sqrt((1-exp(-2*alpha[regimenumber]*(newtime-oldtime)))/(2*alpha[regimenumber]))
-					oldtime<-newtime
-					newregime<-regimenumber
-				}
-			}
-		}
-
-		sim.dat<-matrix(,ntips,2)
-		sim.dat<-data.frame(sim.dat)
-
-		sim.dat[,1]<-phy$tip.label
-		sim.dat[,2]<-x[TIPS,]
-        if(mserr == "known"){
-            for(i in TIPS){
-                sim.dat[i,2] <- rnorm(1,sim.dat[i,2],data[i,3])
+                    oldtime<-newtime
+                    newregime<-regimenumber
+                }
             }
         }
-		colnames(sim.dat)<-c("Genus_species","X")
-	}
-	sim.dat
+        
+        if(get.all == TRUE) {
+            sim.dat <- matrix(,length(x),3)
+            sim.dat <- data.frame(sim.dat)
+            
+            sim.dat[,1] <- NA
+            sim.dat[TIPS,1] <- phy$tip.label
+            sim.dat[,2] <- x
+            
+            if(mserr == "known"){
+                for(i in TIPS){
+                    sim.dat[i,3] <- rnorm(1, sim.dat[i,2], data[i,2])
+                }
+            }
+        }else{
+            sim.dat<-matrix(,ntips,2)
+            sim.dat<-data.frame(sim.dat)
+            
+            sim.dat[,1]<-phy$tip.label
+            sim.dat[,2]<-x[TIPS,]
+            if(mserr == "known"){
+                for(i in TIPS){
+                    sim.dat[i,2] <- rnorm(1, sim.dat[i,2], data[i,2])
+                }
+            }
+        }
+        colnames(sim.dat)<-c("Genus_species","X")
+		if(mserr=="known"){
+			sim.dat$mserr <- mserr_vector	
+		}		
+    }
+    sim.dat
 }
+

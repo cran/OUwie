@@ -15,6 +15,14 @@ OUwie <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMV
         algorithm = "invert"
         warning("An algorithm was not specified. Defaulting to computing the determinant and inversion of the vcv.", call.=FALSE, immediate.=TRUE)
     }
+	
+	if(algorithm == "fast") {
+		algorithm = "three.point"	
+	}
+	
+	if(algorithm == "slow") {
+		algorithm = "invert"	
+	}	
 
     if(model=="BMS" & root.station==TRUE){
         warning("By setting root.station=TRUE, you have specified the group means model of Thomas et al. 2006", call.=FALSE, immediate.=TRUE)
@@ -62,6 +70,7 @@ OUwie <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMV
     if(mserr == "none"){
 		data <- data.frame(data[,2], data[,3], row.names=data[,1])
 		data <- data[phy$tip.label,]
+		tip.states.cp <- factor(data[,1]) # fixes a cosmetic bug when internal states don't match external
 	}
 	if(mserr=="known"){
 		if(!dim(data)[2]==4){
@@ -73,13 +82,14 @@ OUwie <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMV
             }else{
                 data <- data.frame(data[,2], data[,3], data[,4], row.names=data[,1])
                 data <- data[phy$tip.label,]
+                tip.states.cp <- factor(data[,1])
             }
 		}
 	}
   
-  if(algorithm == "three.point" & scaleHeight == FALSE){
-    warning("It is recommended that you set scaleHeight to TRUE if using the three-point algorithm.", call. = FALSE, immediate.=TRUE)
-  }
+  # if(algorithm == "three.point" & scaleHeight == FALSE){
+  #   warning("It is recommended that you set scaleHeight to TRUE if using the three-point algorithm.", call. = FALSE, immediate.=TRUE)
+  # }
 
     #Values to be used throughout
 	n <- max(phy$edge[,1])
@@ -108,7 +118,8 @@ OUwie <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMV
 		data[,1] <- as.numeric(tip.states)
 
 		#Obtains the state at the root
-		root.state=which(colnames(phy$mapped.edge)==names(phy$maps[[1]][1]))
+		root.edge.index <- which(phy$edge[,1] == ntips+1)
+		root.state <- which(colnames(phy$mapped.edge)==names(phy$maps[[root.edge.index[2]]][1]))
 		##Begins the construction of the edges matrix -- similar to the ouch format##
 		edges=cbind(c(1:(n-1)),phy$edge, MakeAgeTable(phy, root.age=root.age))
 
@@ -375,7 +386,8 @@ OUwie <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMV
                 }
             }
             if(algorithm == "three.point"){
-                pars <- matrix(c(Rate.mat[3,], Rate.mat[2,], Rate.mat[1,]), dim(Rate.mat)[2], 3, dimnames = list(levels(tot.states), c("opt", "sig", "alp")))
+                pars <- matrix(c(Rate.mat[3,], Rate.mat[2,], Rate.mat[1,]), dim(Rate.mat)[2], 3, 
+                               dimnames = list(levels(factor(as.numeric(tot.states))), c("opt", "sig", "alp")))
                 if(get.root.theta == TRUE){
                     root.par.index <- length(p)
                     theta0 <- p[root.par.index]
@@ -434,15 +446,46 @@ OUwie <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMV
 		cat("Initializing...", "\n")
 	}
   
-	if(is.null(lb)){
-	  lb <- 1e-9
+	# upper and lower bounds
+	if(algorithm == "three.point"){
+	  if(max(index.mat[1,]) > max(index.mat[2,])){
+	    k.alpha <- 0
+	    k.sigma <- length(unique(index.mat[2,]))
+	  }else{
+	    k.alpha <- length(unique(index.mat[1,]))
+	    k.sigma <- length(unique(index.mat[2,]))
+	  }
+	  if(is.null(lb)){
+	    lb.alpha <- 1e-9
+	    lb.sigma <- 1e-9
+	    lower = c(rep(log(lb.alpha), k.alpha), rep(log(lb.sigma), k.sigma))
+	    lb <- 1e-9
+	  }else{
+	    lower = c(rep(log(lb[1]), k.alpha), rep(log(lb[2]), k.sigma))
+	    ub <- ub[3] # theta's are added later
+	  }
+	  if(is.null(ub)){
+	    ub.alpha <- 100
+	    ub.sigma <- 100
+	    upper = c(rep(log(ub.alpha), k.alpha), rep(log(ub.sigma), k.sigma))
+	    ub <- 100
+	  }else{
+	    upper = c(rep(log(ub[1]), k.alpha), rep(log(ub[2]), k.sigma))
+	    ub <- ub[3] # theta's are added later
+	  }
+	}else{
+	  if(is.null(lb)){
+	    lb <- 1e-9
+	  }
+	  if(is.null(ub)){
+	    ub <- 100
+	  }
+	  lower = rep(log(lb), np)
+	  upper = rep(log(ub), np)	
 	}
-	if(is.null(ub)){
-	  ub <- 100
-	}
-	lower = rep(log(lb), np)
-	upper = rep(log(ub), np)
 
+	# for any downstream usage, we default to the old treatment of lb and ub
+	
     if(algorithm == "three.point"){
         if(simmap.tree == FALSE){
             map <- getMapFromNode(phy, tip.states, int.states, shift.point)
@@ -453,6 +496,7 @@ OUwie <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMV
             map <- phy$maps
             if(scaleHeight==TRUE){
               map <- lapply(map, function(x) x/Tmax)
+              phy$maps <- map
             }
         }
     }
@@ -485,6 +529,9 @@ OUwie <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMV
                 ip <- c(ip, mean(x))
             }else{
                 means.by.regime <- with(data, tapply(data[,2], data[,1], mean))
+                if(length(means.by.regime) < length(levels(tot.states))){
+                  means.by.regime <- rep(mean(data[,2]), length(levels(tot.states)))
+                }
                 names(means.by.regime) <- NULL
                 ip <- c(ip, means.by.regime)
             }
@@ -545,7 +592,7 @@ OUwie <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMV
 		if(quiet==FALSE){
 			cat("Finished. Begin thorough search...", "\n")
 		}
-		out = nloptr(x0=log(ip), eval_f=dev, lb=lower, ub=upper, opts=opts, index.mat=index.mat, edges=edges, mserr=mserr, trendy=trendy, get.root.theta=get.root.theta)
+		out = nloptr(x0=log(ip), eval_f=dev, lb=fix_lower(lower, log(ip)), ub=fix_upper(upper, log(ip)), opts=opts, index.mat=index.mat, edges=edges, mserr=mserr, trendy=trendy, get.root.theta=get.root.theta)
 	}
 	
     loglik <- -out$objective
@@ -599,6 +646,7 @@ OUwie <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMV
 
 	#Calculates the Hessian for use in calculating standard errors and whether the maximum likelihood solution was found
 	if(diagn==TRUE){
+	  data[,1] <- tip.states.cp # fixes a cosmetic bug in cases where internal states don't match tip states
 		h <- hessian(x=log(out$solution), func=dev, index.mat=index.mat, edges=edges, mserr=mserr, trendy=trendy, get.root.theta=get.root.theta)
 		#Using the corpcor package here to overcome possible NAs with calculating the SE
 		solution <- matrix(out$solution[index.mat], dim(index.mat))
@@ -620,7 +668,6 @@ OUwie <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMV
 		#If eigenvect is TRUE then the eigenvector and index matrix will appear in the list of objects
 		eigval<-signif(hess.eig$values,2)
 		eigvect<-round(hess.eig$vectors, 2)
-        
         if(get.root.theta == TRUE){
             if(model == "BM1" | model == "BMS"){
                 W <- matrix(0, Ntip(phy), k + 1)
@@ -667,6 +714,7 @@ OUwie <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMV
 	}
     
 	if(diagn==FALSE){
+	  data[,1] <- tip.states.cp # fixes a cosmetic bug in cases where internal states don't match tip states
 		solution <- matrix(out$solution[index.mat], dim(index.mat))
 		if(model=="TrendyM" | model=="TrendyMS"){
 			rownames(solution) <- rownames(index.mat) <- c("alpha","sigma.sq","trend")
@@ -836,8 +884,9 @@ print.OUwie<-function(x, ...){
 		if (any(x$eigval<0)) {
 			cat("The objective function may be at a saddle point -- check eigenvectors or try a simpler model", "\n")
 		}
-	}
-	else{
+	} else if (abs(x$loglik)==10000000) {
+		cat("Error in calculating likeliood so an inaccurate placeholder value was returned: search likely never went beyond its starting value and the likelihood and AICc values are incorrect", "\n")
+	} else {
 		cat("Arrived at a reliable solution","\n")
 	}
 }

@@ -10,6 +10,14 @@ OUwie.fixed<-function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","
         algorithm = "invert"
         warning("An algorithm was not specified. Defaulting to computing the determinant and inversion of the vcv.", call.=FALSE, immediate.=TRUE)
     }
+	
+	if(algorithm == "fast") {
+		algorithm = "three.point"	
+	}
+	
+	if(algorithm == "slow") {
+		algorithm = "invert"	
+	}	
     
     if(model=="BMS" & root.station==TRUE){
         warning("By setting root.station=TRUE, you have specified the group means model of Thomas et al. 2006", call.=FALSE, immediate.=TRUE)
@@ -109,7 +117,8 @@ OUwie.fixed<-function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","
         data[,1] <- as.numeric(tip.states)
         
         #Obtains the state at the root
-        root.state <- which(colnames(phy$mapped.edge)==names(phy$maps[[1]][1]))
+        root.edge.index <- which(phy$edge[,1] == ntips+1)
+        root.state <- which(colnames(phy$mapped.edge)==names(phy$maps[[root.edge.index[2]]][1]))
         ##Begins the construction of the edges matrix -- similar to the ouch format##
         edges <- cbind(c(1:(n-1)),phy$edge,MakeAgeTable(phy, root.age=root.age))
         if(scaleHeight == TRUE){
@@ -323,7 +332,8 @@ OUwie.fixed<-function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","
             return(list(-logl,theta.est))
         }
         if(algorithm == "three.point"){
-            pars <- matrix(c(Rate.mat[3,], Rate.mat[2,], Rate.mat[1,]), dim(Rate.mat)[2], 3, dimnames = list(levels(tot.states), c("opt", "sig", "alp")))
+            pars <- matrix(c(Rate.mat[3,], Rate.mat[2,], Rate.mat[1,]), dim(Rate.mat)[2], 3, 
+                           dimnames = list(levels(factor(as.numeric(tot.states))), c("opt", "sig", "alp")))
             if(get.root.theta == TRUE){
                 expected.vals <- colSums(t(W) * c(theta0, pars[,1]))
                 names(expected.vals) <- phy$tip.label
