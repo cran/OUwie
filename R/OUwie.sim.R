@@ -17,8 +17,8 @@
 #multiple alphas (OUSMA): alpha=c(0.5,0.1); sigma.sq=c(0.9,0.9); theta0=0; theta=c(1,2)
 #multiple alphas and sigmas (OUSMVA): alpha=c(0.5,0.1); sigma.sq=c(0.45,0.9); theta0=0; theta=c(1,2)
 
-OUwie.sim <- function(phy=NULL, data=NULL, simmap.tree=FALSE, root.age=NULL, scaleHeight=FALSE, alpha=NULL, sigma.sq=NULL, theta0=NULL, theta=NULL, mserr="none", shift.point=0.5, fitted.object=NULL, get.all=FALSE){
-	mserr_vector <- NA
+OUwie.sim <- function(phy=NULL, data=NULL, simmap.tree=FALSE, root.age=NULL, scaleHeight=FALSE, alpha=NULL, sigma.sq=NULL, theta0=NULL, theta=NULL, tip.fog="none", shift.point=0.5, fitted.object=NULL, get.all=FALSE){
+	tip.fog_vector <- NA
     if(!is.null(fitted.object)) {
         if(grepl("BM", fitted.object$model) | grepl("OU1", fitted.object$model)) {
             stop(paste("not implemented yet for ", fitted.object$model))
@@ -32,8 +32,10 @@ OUwie.sim <- function(phy=NULL, data=NULL, simmap.tree=FALSE, root.age=NULL, sca
         alpha[which(is.na(alpha))] <- 0
         sigma.sq <- fitted.object$solution['sigma.sq',]
         
-        if(mserr != "none"){
-            warning("measurement error is not yet handled for simulations from fitted.object")
+		phy <- reorder.phylo(phy, "cladewise")
+        
+		if(tip.fog != "none"){
+            warning("Tip fog is not yet handled for simulations from fitted.object")
         }
         
         if (fitted.object$root.station == TRUE | fitted.object$root.station==FALSE){
@@ -74,23 +76,23 @@ OUwie.sim <- function(phy=NULL, data=NULL, simmap.tree=FALSE, root.age=NULL, sca
     #Makes sure the data is in the same order as the tip labels
 	if(simmap.tree == FALSE){
 		#This is annoying, but the second column has to be in there twice otherwise, error.
-        if(mserr == "none"){
+        if(tip.fog == "none"){
             data <- data.frame(data[,2], data[,2], row.names=data[,1])
         }
-        if(mserr == "known"){
+        if(tip.fog == "known"){
             data <- data.frame(data[,2], data[,3], row.names=data[,1])
-			mserr_vector <- data[,2] #because we've shifted things over
+			tip.fog_vector <- data[,2] #because we've shifted things over
         }
-		if(is.numeric(mserr)){
-			if(length(mserr) == length(phy$tip.label)){
-				data <- data.frame(data[,2], mserr, row.names=data[,1])
-				mserr_vector <- mserr
-			}	
-			if(length(mserr)==1){
-				data <- data.frame(data[,2], rep(mserr, length(phy$tip.label)), row.names=data[,1])
-				mserr_vector <- rep(mserr, length(phy$tip.label))
+		if(is.numeric(tip.fog)){
+			if(length(tip.fog) == length(phy$tip.label)){
+				data <- data.frame(data[,2], tip.fog, row.names=data[,1])
+				tip.fog_vector <- tip.fog
 			}
-			mserr <- "known"
+			if(length(tip.fog)==1){
+				data <- data.frame(data[,2], rep(tip.fog, length(phy$tip.label)), row.names=data[,1])
+				tip.fog_vector <- rep(tip.fog, length(phy$tip.label))
+			}
+			tip.fog <- "known"
 		}
 
 		data <- data[phy$tip.label,]
@@ -107,11 +109,11 @@ OUwie.sim <- function(phy=NULL, data=NULL, simmap.tree=FALSE, root.age=NULL, sca
 
 		regime <- matrix(rep(0,(n-1)*k), n-1, k)
 
-		#Obtain root state and internal node labels
+		#Obtain root state and internal node labels:
 		root.state <- phy$node.label[1]
 		int.state <- phy$node.label[-1]
 
-		#New tree matrix to be used for subsetting regimes
+		#New tree matrix to be used for subsetting regimes:
 		edges <- cbind(c(1:(n-1)),phy$edge,MakeAgeTable(phy, root.age=root.age))
 		if(scaleHeight == TRUE){
 			edges[,4:5] <- edges[,4:5]/max(MakeAgeTable(phy, root.age=root.age))
@@ -122,14 +124,14 @@ OUwie.sim <- function(phy=NULL, data=NULL, simmap.tree=FALSE, root.age=NULL, sca
 		mm <- c(data[,1],int.state)
 
 		regime <- matrix(0,nrow=length(mm),ncol=length(unique(mm)))
-		#Generates an indicator matrix from the regime vector
+		#Generates an indicator matrix from the regime vector:
 		for (i in 1:length(mm)) {
 			regime[i,mm[i]] <- 1
 		}
-		#Finishes the edges matrix
+		#Finishes the edges matrix:
 		edges <- cbind(edges,regime)
 
-		#Resort the edge matrix so that it looks like the original matrix order
+		#Resort the edge matrix so that it looks like the original matrix order:
 		edges <- edges[sort.list(edges[,1]),]
 
 		oldregime <- root.state
@@ -178,9 +180,9 @@ OUwie.sim <- function(phy=NULL, data=NULL, simmap.tree=FALSE, root.age=NULL, sca
             sim.dat[,2] <- c(data[,1], phy$node.label)
             sim.dat[,3] <- x
             
-            if(mserr == "known"){
+            if(tip.fog == "known"){
                 for(i in TIPS){
-                    sim.dat[i,3] <- rnorm(1,sim.dat[i,3],data[i,2])
+                    sim.dat[i,3] <- rnorm(1,sim.dat[i,3], data[i,2])
                 }
             }
         }else{
@@ -191,21 +193,43 @@ OUwie.sim <- function(phy=NULL, data=NULL, simmap.tree=FALSE, root.age=NULL, sca
             sim.dat[,2] <- data[,1]
             sim.dat[,3] <- x[TIPS]
             
-            if(mserr == "known"){
+            if(tip.fog == "known"){
                 for(i in TIPS){
-                    sim.dat[i,3] <- rnorm(1,sim.dat[i,3],data[i,2])
+                    sim.dat[i,3] <- rnorm(1,sim.dat[i,3], data[i,2])
                 }
             }
         }
 
 		colnames(sim.dat)<-c("Genus_species","Reg","X")
-		if(mserr=="known"){
-			sim.dat$mserr <- mserr_vector	
+		if(tip.fog=="known"){
+			sim.dat$tip.fog <- tip.fog_vector
 		}
 	}
 	if(simmap.tree==TRUE){
-		n=max(phy$edge[,1])
-		ntips=length(phy$tip.label)
+		#This is annoying, but the second column has to be in there twice otherwise, error.
+		if(tip.fog == "none"){
+			data <- data.frame(data[,2], data[,2], row.names=data[,1])
+		}
+		if(tip.fog == "known"){
+			data <- data.frame(data[,2], data[,3], row.names=data[,1])
+			tip.fog_vector <- data[,2] #because we've shifted things over
+		}
+		if(is.numeric(tip.fog)){
+			if(length(tip.fog) == length(phy$tip.label)){
+				data <- data.frame(data[,2], tip.fog, row.names=data[,1])
+				tip.fog_vector <- tip.fog
+			}
+			if(length(tip.fog)==1){
+				data <- data.frame(data[,2], rep(tip.fog, length(phy$tip.label)), row.names=data[,1])
+				tip.fog_vector <- rep(tip.fog, length(phy$tip.label))
+			}
+			tip.fog <- "known"
+		}
+		
+		data <- data[phy$tip.label,]
+
+		n <- max(phy$edge[,1])
+		ntips <- length(phy$tip.label)
 
 		k=length(colnames(phy$mapped.edge))
 
@@ -282,27 +306,29 @@ OUwie.sim <- function(phy=NULL, data=NULL, simmap.tree=FALSE, root.age=NULL, sca
             sim.dat[TIPS,1] <- phy$tip.label
             sim.dat[,2] <- x
             
-            if(mserr == "known"){
+            if(tip.fog == "known"){
                 for(i in TIPS){
-                    sim.dat[i,3] <- rnorm(1, sim.dat[i,2], data[i,2])
+                    sim.dat[i,2] <- rnorm(1, sim.dat[i,2], data[i,2])
                 }
             }
         }else{
-            sim.dat<-matrix(,ntips,2)
-            sim.dat<-data.frame(sim.dat)
+            sim.dat <- matrix(,ntips,2)
+            sim.dat <- data.frame(sim.dat)
             
-            sim.dat[,1]<-phy$tip.label
-            sim.dat[,2]<-x[TIPS,]
-            if(mserr == "known"){
+            sim.dat[,1] <- phy$tip.label
+            sim.dat[,2] <- x[TIPS,]
+			if(tip.fog == "known"){
                 for(i in TIPS){
+					print(sim.dat[i,2])
+					print(data[i,2])
                     sim.dat[i,2] <- rnorm(1, sim.dat[i,2], data[i,2])
                 }
             }
         }
         colnames(sim.dat)<-c("Genus_species","X")
-		if(mserr=="known"){
-			sim.dat$mserr <- mserr_vector	
-		}		
+		if(tip.fog=="known"){
+			sim.dat$tip.fog <- tip.fog_vector
+		}
     }
     sim.dat
 }

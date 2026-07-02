@@ -6,8 +6,8 @@
 OUwie.fixed(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"), 
 simmap.tree=FALSE, root.age=NULL, scaleHeight=FALSE, root.station=FALSE, 
 get.root.theta=FALSE, shift.point=0.5, alpha=NULL, sigma.sq=NULL, theta=NULL, 
-clade=NULL, mserr="none", check.identify=TRUE, algorithm=c("invert", "three.point"), 
-tip.paths=NULL, quiet=FALSE)
+clade=NULL, tip.fog="none", check.identify=TRUE, algorithm=c("invert", "three.point"), 
+tip.paths=NULL, quiet=FALSE, revert.old=FALSE)
 }       
 \arguments{
 \item{phy}{a phylogenetic tree, in \code{ape} \dQuote{phylo} format and with internal nodes labeled denoting the ancestral selective regimes}
@@ -23,11 +23,12 @@ tip.paths=NULL, quiet=FALSE)
 \item{sigma.sq}{a numeric vector giving the values of \eqn{\sigma^2}{sigma^2} for each selective regime} 
 \item{theta}{a numeric vector giving the values of \eqn{\theta}{theta} for each selective regime}
 \item{clade}{a list containing a pair of taxa whose MRCA is the clade of interest.}
-\item{mserr}{designates whether a fourth column in the data matrix contains measurement error for each species value ("known"). The measurement error is assumed to be the standard error of the species mean. The default is "none".}
+\item{tip.fog}{designates whether a fourth column in the data matrix contains tip fog for each species value ("known"). The tip fog is assumed to be the standard error of the species mean. If a single numeric value is supplied it will be applied to all species uniformly. The default is "none", meaning no tip fog is used.}
 \item{check.identify}{a logical indicating whether to check that the user-supplied regime paintings will produce identifiable theta estimates. The default is \code{TRUE}.}
 \item{algorithm}{designates whether the standard matrix inversion ('invert') or the faster 'three-point' algorithm of Ho and Ane (2013) should be used.}
 \item{tip.paths}{an optional list that can be provided by the user where each element from 1:nTips is the path from tip to root by labeled node number. The default is NULL and this option is used for internal speedups.}
 \item{quiet}{a logical indicating whether or not to print progress to the screen. The default is "FALSE".}
+\item{revert.old}{a logical indicating whether or not to use an older implementation of the multiple alpha models. The default is "FALSE".}
 }
 \details{
 The input is a tree and a data file. The tree must be of class \dQuote{phylo} and must contain the ancestral selective regimes as internal node labels. The data file is a data.frame that must have column entries in the following order: [,1] species names and [,2] their current selective regime. The user specifies the  parameter values (i.e. \eqn{\alpha}{alpha}, \eqn{\sigma^2}{sigma^2}, and \eqn{\theta}{theta}).

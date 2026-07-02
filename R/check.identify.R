@@ -21,7 +21,7 @@ check.identify <- function(phy, data, simmap.tree=FALSE, quiet=FALSE){
         if(simmap.tree==TRUE){
             regimeindex <- colnames(phy$mapped.edge)
             currentmap <- phy$maps[[i]]
-            if(length(currentmap > 1)){
+            if(length(currentmap) > 1){
                 shift.number <- shift.number + 1
                 regime_shifts[shift.number] <- i
             }
@@ -32,7 +32,12 @@ check.identify <- function(phy, data, simmap.tree=FALSE, quiet=FALSE){
             }
         }
     }
-    
+    if(shift.number==0) {
+		if(quiet == FALSE){
+            cat("The regime optimum is identifiable given there are no shifts.", "\n")
+        }
+        return(1)
+	}
     graph_tree <- graph_from_edgelist(phy$edge[-c(regime_shifts),], directed=FALSE)
     comp.count <- count_components(graph_tree)
     
@@ -77,7 +82,7 @@ check.identify.dredge <- function(phy, data, simmap.tree=FALSE, get.penalty=FALS
         if(simmap.tree==TRUE){
             regimeindex <- colnames(phy$mapped.edge)
             currentmap <- phy$maps[[i]]
-            if(length(currentmap > 1)){
+            if(length(currentmap) > 1){
                 shift.number <- shift.number + 1
                 regime_shifts[[shift.number]] <- i
             }

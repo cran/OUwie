@@ -4,7 +4,7 @@
 
 #Allows the user to calculate the likelihood given a specified set of parameter values.
 
-OUwie.fixed<-function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"), simmap.tree=FALSE, root.age=NULL, scaleHeight=FALSE, root.station=FALSE, get.root.theta=FALSE, shift.point=0.5, alpha=NULL, sigma.sq=NULL, theta=NULL, clade=NULL, mserr="none", check.identify=TRUE, algorithm=c("invert", "three.point"), tip.paths=NULL, quiet=FALSE){
+OUwie.fixed<-function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMVA"), simmap.tree=FALSE, root.age=NULL, scaleHeight=FALSE, root.station=FALSE, get.root.theta=FALSE, shift.point=0.5, alpha=NULL, sigma.sq=NULL, theta=NULL, clade=NULL, tip.fog="none", check.identify=TRUE, algorithm=c("invert", "three.point"), tip.paths=NULL, quiet=FALSE, revert.old=FALSE){
     
     if(length(algorithm) == 2){
         algorithm = "invert"
@@ -66,11 +66,11 @@ OUwie.fixed<-function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","
     }
     
     #Makes sure the data is in the same order as the tip labels
-    if(mserr=="none"){
+    if(tip.fog=="none" | is.numeric(tip.fog)){
         data <- data.frame(data[,2], data[,3], row.names=data[,1])
         data <- data[phy$tip.label,]
     }
-    if(mserr=="known"){
+    if(tip.fog=="known"){
         # algorithm = "invert"
         if(!dim(data)[2]==4){
             stop("You specified measurement error should be incorporated, but this information is missing.", call. = FALSE)
@@ -143,8 +143,8 @@ OUwie.fixed<-function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","
         node.states <- factor(phy$node.label)
         data[,1] <- as.numeric(tip.states)
         
-        if (is.character(model)) {
-            if (model == "BM1"| model == "OU1"){
+        if(is.character(model)) {
+            if(model == "BM1"| model == "OU1"){
                 ##Begins the construction of the edges matrix -- similar to the ouch format##
                 #Makes a vector of absolute times in proportion of the total length of the tree
                 k <- length(levels(tip.states))
@@ -293,25 +293,44 @@ OUwie.fixed<-function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","
         }
     }
     
+	if(is.numeric(tip.fog)){
+		param.count <- param.count + 1
+	}
+
     obj <- NULL
     
     if(get.root.theta == TRUE){
-        W <- weight.mat(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, root.age=root.age, scaleHeight=scaleHeight, assume.station=FALSE, shift.point=shift.point)
+        if(revert.old == TRUE){
+			W <- weight.mat.old(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, root.age=root.age, scaleHeight=scaleHeight, assume.station=FALSE, shift.point=shift.point)
+		}else{
+			W <- weight.mat(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, root.age=root.age, scaleHeight=scaleHeight, assume.station=FALSE, shift.point=shift.point)
+		}
     }else{
-        W <- weight.mat(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, root.age=root.age, scaleHeight=scaleHeight, assume.station=TRUE, shift.point=shift.point)
+		if(revert.old == TRUE){
+			W <- weight.mat.old(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, root.age=root.age, scaleHeight=scaleHeight, assume.station=TRUE, shift.point=shift.point)
+		}else{
+			W <- weight.mat(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, root.age=root.age, scaleHeight=scaleHeight, assume.station=TRUE, shift.point=shift.point)
+		}
     }
     
     #Likelihood function for estimating model parameters
     dev.fixed <- function(){
         if(algorithm == "invert"){
-            
+			
             N <- length(x[,1])
-            V <- varcov.ou(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, root.age=root.age, scaleHeight=scaleHeight, assume.station=root.station, shift.point=shift.point)
-            
-            if(mserr=="known"){
+			if(revert.old == TRUE){
+				V <- varcov.ou.old(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, root.age=root.age, scaleHeight=scaleHeight, assume.station=root.station, shift.point=shift.point)
+            }else{
+				V <- varcov.ou(phy, edges, Rate.mat, root.state=root.state, simmap.tree=simmap.tree, root.age=root.age, scaleHeight=scaleHeight, assume.station=root.station, shift.point=shift.point)
+			}
+            if(tip.fog=="known"){
                 diag(V) <- diag(V)+(data[,3]^2)
             }
-            
+			
+			if(is.numeric(tip.fog)){
+				diag(V) <- diag(V) + tip.fog
+			}
+
             if(is.null(theta)){
                 theta <- pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)%*%t(W)%*%pseudoinverse(V)%*%x
                 se <- sqrt(diag(pseudoinverse(t(W)%*%pseudoinverse(V)%*%W)))
@@ -333,7 +352,7 @@ OUwie.fixed<-function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","
         }
         if(algorithm == "three.point"){
             pars <- matrix(c(Rate.mat[3,], Rate.mat[2,], Rate.mat[1,]), dim(Rate.mat)[2], 3, 
-                           dimnames = list(levels(factor(as.numeric(tot.states))), c("opt", "sig", "alp")))
+                           dimnames = list(levels(factor((tot.states))), c("opt", "sig", "alp")))
             if(get.root.theta == TRUE){
                 expected.vals <- colSums(t(W) * c(theta0, pars[,1]))
                 names(expected.vals) <- phy$tip.label
@@ -341,20 +360,34 @@ OUwie.fixed<-function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","
                 expected.vals <- colSums(t(W) * pars[,1])
                 names(expected.vals) <- phy$tip.label
             }
-            transformed.tree <- transformPhy(phy, map, pars, tip.paths)
+			if(revert.old == TRUE){
+				transformed.tree.old <- transformPhy.old(phy, map, pars, tip.paths)
+			}else{
+				transformed.tree <- transformPhy(phy, map, pars, tip.paths)
+			}
             # generate a map from node based reconstructions
-            if(mserr=="known"){
+            if(tip.fog=="known"){
                 TIPS <- transformed.tree$tree$edge[,2] <= length(transformed.tree$tree$tip.label)
                 transformed.tree$tree$edge.length[TIPS] <- transformed.tree$tree$edge.length[TIPS] + (data[,3]^2/transformed.tree$diag/transformed.tree$diag)
             }
-            comp <- phylolm::three.point.compute(transformed.tree$tree, x, expected.vals, transformed.tree$diag)
-            logl <- -as.numeric(Ntip(phy) * log(2 * pi) + comp$logd + (comp$PP - 2 * comp$QP + comp$QQ))/2
+			if(is.numeric(tip.fog)){
+				TIPS <- transformed.tree$tree$edge[,2] <= length(transformed.tree$tree$tip.label)
+				transformed.tree$tree$edge.length[TIPS] <- transformed.tree$tree$edge.length[TIPS] + (tip.fog/transformed.tree$diag/transformed.tree$diag)
+			}
+			comp <- NA
+			try(comp <- phylolm::three.point.compute(transformed.tree$tree, x, expected.vals, transformed.tree$diag), silent=TRUE)
+			if(is.na(comp[1])){
+				return(10000000)
+			}else{
+				logl <- -as.numeric(Ntip(phy) * log(2 * pi) + comp$logd + (comp$PP - 2 * comp$QP + comp$QQ))/2
+			}
             se <- rep(NA,length(theta))
             theta.est <- cbind(theta,se)
             return(list(-logl, theta.est))
         }
     }
-    if(quiet==FALSE){
+    
+	if(quiet==FALSE){
         cat("Calculating likelihood using fixed parameter values:",c(alpha,sigma.sq,theta), "\n")
     }
     
@@ -387,7 +420,7 @@ OUwie.fixed<-function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","
         colnames(regime.weights) <- c(levels(tot.states), "Tip_regime")
     }
     
-    obj = list(loglik = loglik, AIC = -2*loglik+2*param.count, AICc=-2*loglik+(2*param.count*(ntips/(ntips-param.count-1))), BIC=-2*loglik + log(ntips) * param.count, model=model, param.count=param.count, solution=Rate.mat, theta=fixed.fit[[2]], tot.states=tot.states, simmap.tree=simmap.tree, root.age=root.age, shift.point=shift.point, data=data, phy=phy, root.station=root.station, scaleHeight=scaleHeight, get.root.theta=get.root.theta, regime.weights=regime.weights, algorithm=algorithm)
+    obj = list(loglik = loglik, AIC = -2*loglik+2*param.count, AICc=-2*loglik+(2*param.count*(ntips/(ntips-param.count-1))), BIC=-2*loglik + log(ntips) * param.count, model=model, param.count=param.count, solution=Rate.mat, theta=fixed.fit[[2]], tot.states=tot.states, simmap.tree=simmap.tree, root.age=root.age, shift.point=shift.point, data=data, phy=phy, root.station=root.station, scaleHeight=scaleHeight, get.root.theta=get.root.theta, regime.weights=regime.weights, algorithm=algorithm, revert.old=revert.old)
     class(obj)<-"OUwie.fixed"
     return(obj)
 }
