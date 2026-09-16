@@ -13,7 +13,7 @@ OUwie <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMV
 	
 	if(model %in% c("OUMA", "OUMVA", "OUVA")) {
 		if(quiet == FALSE){
-			warning("Please cite Lau et al. (2026) for use of multiple alpha models. See Calculation Update vignette for details.", call.=FALSE, immediate.=TRUE)
+			warning("Please cite Lau et al. (2026) published in MEE for use of multiple alpha models. See Calculation Update vignette for details.", call.=FALSE, immediate.=TRUE)
 		}
 	}
 
@@ -31,6 +31,12 @@ OUwie <- function(phy, data, model=c("BM1","BMS","OU1","OUM","OUMV","OUMA","OUMV
 	if(algorithm == "slow") {
 		algorithm = "invert"	
 	}	
+	
+	if(algorithm == "three.point"){
+	  if(any(branching.times(phy)<0)){
+	    stop("Looks like your tree is producing negative branching times. This requires input of a known rootage, but specific root ages are currently only available for the invert algorithm.")
+	  }
+	}
 
     if(model=="BMS" & root.station==TRUE){
         warning("By setting root.station=TRUE, you have specified the group means model of Thomas et al. 2006", call.=FALSE, immediate.=TRUE)
